@@ -1,0 +1,1 @@
+./runScript.sh -i ./cc3dExampleSimulation/CC3D_sim_for_AVS.cc3d -f 100 -o ./Output/ -c infoPrinter

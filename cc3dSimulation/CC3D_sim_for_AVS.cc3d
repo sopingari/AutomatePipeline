@@ -1,0 +1,6 @@
+<Simulation version="4.0.0">
+   <XMLScript Type="XMLScript">Simulation/clustertest.xml</XMLScript>
+   <PythonScript Type="PythonScript">Simulation/clustertest.py</PythonScript>
+   <PIFFile Type="PIFFile">Simulation/output.piff</PIFFile>
+   <Resource Type="Python">Simulation/WallTest2Steppables.py</Resource>
+</Simulation>
