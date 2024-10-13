@@ -1,0 +1,68 @@
+<CompuCell3D Revision="20190604" Version="4.0.0">
+   
+   <Potts>
+      
+      <!-- Basic properties of CPM (GGH) algorithm -->
+      <Dimensions x="136" y="136" z="136"/>
+      <Steps>100</Steps>
+      <Temperature>20.0</Temperature>
+      <NeighborOrder>4</NeighborOrder>
+   </Potts>
+   
+   <Plugin Name="CellType">
+      
+      <!-- Listing all cell types in the simulation -->
+      <CellType TypeId="0" TypeName="Medium"/>
+      <CellType TypeId="1" TypeName="Body"/>
+      <CellType Freeze="" TypeId="2" TypeName="Wall"/>
+   </Plugin>
+   <Plugin Name="Surface">
+   <!-- <SurfaceEnergyParameters CellType="Body" LambdaSurface="2.0" TargetSurface="50"/> -->
+   <!-- <SurfaceEnergyParameters CellType="Wall" LambdaSurface="2.0" TargetSurface="50"/> -->
+</Plugin>
+
+   <Plugin Name="Volume"/>
+   <Plugin Name="VolumeTracker"/>
+   <!-- <Plugin Name="ConnectivityGlobal"> -->
+   
+   <!-- Connectivity constraint applied to each cell. Energy penalty specifies how strong the constraint is. Penalty is specified for each type  -->
+   <!-- This constraint works in 2D and 3D on all type of lattices. It might be slowdown your simulation. For faster option - 2D and square lattice you may use Connectivity or ConnectivityLocalFlex -->
+   <!-- To speed up simulation comment out unnecessary constraints for types which don't need the constraint -->
+   <!-- By default we will always precheck connectivity BUT in simulations in which there is no risk of having unfragmented cell one can add this flag to speed up computations -->
+   <!-- To turn off precheck uncomment line below -->
+   <!-- <DoNotPrecheckConnectivity/> -->
+   <!-- <Penalty Type="Body">1000000</Penalty> -->
+<!-- </Plugin> -->
+
+  <Plugin Name="CenterOfMass">
+      <!-- Module tracking center of mass of each cell -->
+   </Plugin>
+   
+   <Plugin Name="Contact">
+      <!-- Specification of adhesion energies -->
+      <Energy Type1="Medium" Type2="Medium">0</Energy>
+      <Energy Type1="Medium" Type2="Body">10</Energy>
+      <Energy Type1="Medium" Type2="Wall">0</Energy>
+      <Energy Type1="Body" Type2="Body">1.0</Energy>
+      <Energy Type1="Body" Type2="Wall">1.0</Energy>
+      <Energy Type1="Wall" Type2="Wall">0</Energy>
+      <NeighborOrder>4</NeighborOrder>
+   </Plugin>
+   <Plugin Name="NeighborTracker">
+   
+   <!-- Module tracking neighboring cells of each cell -->
+</Plugin>
+
+   <Steppable Type="PIFInitializer">
+      
+      <!-- Initial layout of cells using PIFF file. Piff files can be generated using PIFGEnerator -->
+      <PIFName>./Simulation/output.piff</PIFName>
+   </Steppable>
+   <Steppable Frequency="100" Type="PIFDumper">
+   
+   <!-- Periodically stores cell layout configuration in a piff format -->
+   <PIFName>10_24Simulation</PIFName>
+   <PIFFileExtension>piff</PIFFileExtension>
+</Steppable>
+
+</CompuCell3D>
