@@ -359,6 +359,14 @@ def main(args):
     if len(spheroids) < N_SPHEROIDS:
         print(f"Only placed {len(spheroids)} out of {N_SPHEROIDS} spheroids.")
     
+    
+    #we will do a function call here that writes the spheroids to a csv file 
+    #spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, 
+    #compute and write the apb volume,apb st dev,apb mean, apb radius 
+    #every spheroid gets its own row including the vacuole  
+
+
+
     # Generate PIFF file
     generate_piff_file(spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, dx=DX, filename=filename)
 
