@@ -3,6 +3,7 @@ import subprocess
 import time
 import os
 import sys
+import stat
 
 ############################################################################################################
 #   Autophagic Vacuole Simulation (AVS) Project
@@ -151,30 +152,38 @@ def vacuole_gen_main(N_spheroids):
         print(f"An error occurred while running vacuole_gen2.py: {e}")
 
 def run_cc3d_script():
-    print("Running CC3D simulation using ccRunScript.sh...")
+    print("Running CC3D simulation using runScript.sh...")
 
-    # Get the src folder path where AVS.py and ccRunScript.sh are located
-    src_folder = os.path.dirname(os.path.abspath(__file__))
-    cc_run_script = os.path.join(src_folder, 'ccRunScript.sh')
+    # Get the path to the CompuCell3D folder
+    cc3d_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CompuCell3D')
+    run_script = os.path.join(cc3d_folder, 'runScript.sh')
 
-    # Check if ccRunScript.sh exists
-    if not os.path.exists(cc_run_script):
-        print("Error: ccRunScript.sh not found in the src folder.")
+    # Check if runScript.sh exists in the CompuCell3D folder
+    if not os.path.exists(run_script):
+        print("Error: runScript.sh not found in the CompuCell3D folder.")
         return
 
-    # Make sure ccRunScript.sh is executable
-    import stat
-    st = os.stat(cc_run_script)
-    os.chmod(cc_run_script, st.st_mode | stat.S_IEXEC)
+    # Make sure runScript.sh is executable
+    st = os.stat(run_script)
+    os.chmod(run_script, st.st_mode | stat.S_IEXEC)
 
-    # Run ccRunScript.sh in the src folder
+    # Define the arguments to pass to runScript.sh
+    input_file = './cc3dSimulation/CC3D_sim_for_AVS.cc3d'
+    frames = '100'
+    output_dir = './Output/'
+    console_printer = 'infoPrinter'
+
+    # Command to run with arguments
+    command = [run_script, '-i', input_file, '-f', frames, '-o', output_dir, '-c', console_printer]
+
+    # Run runScript.sh with the necessary arguments in the CompuCell3D folder
     try:
         start_time = time.time()
-        subprocess.run([cc_run_script], check=True, cwd=src_folder)
+        subprocess.run(command, check=True, cwd=cc3d_folder)
         end_time = time.time()
         print(f"CC3D simulation completed in {end_time - start_time:.2f} seconds.")
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while running ccRunScript.sh: {e}")
+        print(f"An error occurred while running runScript.sh: {e}")
 
 def read_readme():
     print("Reading the ReadMe file...")

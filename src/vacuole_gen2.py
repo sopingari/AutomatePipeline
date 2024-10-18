@@ -373,6 +373,10 @@ def main(args):
     # Save a copy of the PIFF file in the run folder
     shutil.copy(filename, os.path.join(run_folder, filename))
     logging.info(f"Saved copy of PIFF file in run folder: {run_folder}")
+    
+    # Save the PIFF file in the Simulation folder (for cc3d use)
+    cc3d = './CompuCell3D/cc3dSimulation/Simulation'
+    shutil.copy(filename, os.path.join(cc3d, filename))
 
     logging.info(f"Run {run_id} completed successfully.")
 
