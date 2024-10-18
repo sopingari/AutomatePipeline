@@ -359,6 +359,22 @@ def main(args):
     if len(spheroids) < N_SPHEROIDS:
         print(f"Only placed {len(spheroids)} out of {N_SPHEROIDS} spheroids.")
     
+   
+   
+   
+    #we will do a function call here that writes the spheroids to a csv file 
+    #spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, 
+    #compute and write the apb volume,apb st dev,apb mean, apb radius 
+    #every spheroid gets its own row including the vacuole  
+   
+   
+   
+   
+   
+   
+   
+   
+   
     # Generate PIFF file
     generate_piff_file(spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, dx=DX, filename=filename)
 
@@ -366,7 +382,7 @@ def main(args):
     shutil.copy(filename, os.path.join(run_folder, filename))
     logging.info(f"Saved copy of PIFF file in run folder: {run_folder}")
     
-    # Save the PIFF file in the Simulation file (for cc3d use)
+    # Save the PIFF file in the Simulation folder (for cc3d use)
     cc3d = './CompuCell3D/cc3dSimulation/Simulation'
     shutil.copy(filename, os.path.join(cc3d, filename))
 
