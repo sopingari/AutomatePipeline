@@ -11,13 +11,64 @@ import logging
 from datetime import datetime
 import os
 import shutil
+import json
 
 
 #Set up logging
-def setup_logging(run_folder):
-    log_file = os.path.join(run_folder, f'statistics.log')
+def setup_logging(run_folder, seed):
+    log_file = os.path.join(run_folder, f'run.log')
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Create a separate statistics file
+    stats_file = os.path.join(run_folder, f'statistics.json')
+    
+    # Log the seed
+    logging.info(f"Random seed: {seed}")
+
+    return stats_file
+
+
+def log_statistics(stats_file, args, spheroids, wall_center, wall_outer_radius, wall_thickness):
+    stats = {
+        "seed": args.seed,
+        "num_spheroids_requested": args.N,
+        "num_spheroids_placed": len(spheroids),
+        "min_radius": args.min_radius,
+        "max_radius": args.max_radius,
+        "wall_center": wall_center,
+        "wall_outer_radius": wall_outer_radius,
+        "wall_thickness": wall_thickness,
+        "grid_dimensions": {
+            "x_max": args.x_max,
+            "y_max": args.y_max,
+            "z_max": args.z_max
+        },
+        "dx": args.dx,
+        "max_tries": args.max_tries
+    }
+    
+    # Calculate additional statistics
+    spheroid_radii = [s['radius'] for s in spheroids]
+    stats["mean_spheroid_radius"] = sum(spheroid_radii) / len(spheroid_radii)
+    stats["min_spheroid_radius"] = min(spheroid_radii)
+    stats["max_spheroid_radius"] = max(spheroid_radii)
+    
+    # Calculate total volume of spheroids
+    total_volume = sum((4/3) * math.pi * (r**3) for r in spheroid_radii)
+    stats["total_spheroid_volume"] = total_volume
+    
+    # Calculate wall volume (outer sphere - inner sphere)
+    wall_inner_radius = wall_outer_radius - wall_thickness
+    wall_volume = (4/3) * math.pi * (wall_outer_radius**3 - wall_inner_radius**3)
+    stats["wall_volume"] = wall_volume
+    
+    # Write statistics to file
+    with open(stats_file, 'w') as f:
+        json.dump(stats, f, indent=2)
+    
+    logging.info(f"Statistics written to {stats_file}")
+
 
 def generate_random_direction():
     """
@@ -323,7 +374,16 @@ def main(args):
     run_folder = os.path.join(runs_dir, run_id)
     os.makedirs(run_folder)
 
-    setup_logging(run_folder)
+    # Setup logging and get stats file path
+    stats_file = setup_logging(run_folder, args.seed)
+
+    if args.seed is None:
+        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+
+    # Setup logging and get stats file path
+    stats_file = setup_logging(run_folder, args.seed)
 
     logging.info(f"Starting new run with ID: {run_id}")
     logging.info(f"Arguments: {args}")
@@ -356,25 +416,19 @@ def main(args):
     # Generate spheroids
     spheroids = generate_spheroids(N_SPHEROIDS, wall_center, wall_inner_radius, MIN_RADIUS, MAX_RADIUS, max_tries=MAX_TRIES)
     
+    # Log statistics
+    log_statistics(stats_file, args, spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS)
+
     if len(spheroids) < N_SPHEROIDS:
         print(f"Only placed {len(spheroids)} out of {N_SPHEROIDS} spheroids.")
     
-   
-   
    
     #we will do a function call here that writes the spheroids to a csv file 
     #spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, 
     #compute and write the apb volume,apb st dev,apb mean, apb radius 
     #every spheroid gets its own row including the vacuole  
    
-   
-   
-   
-   
-   
-   
-   
-   
+
     # Generate PIFF file
     generate_piff_file(spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, dx=DX, filename=filename)
 
@@ -402,6 +456,9 @@ if __name__ == "__main__":
     parser.add_argument('--dx', type=float, default=1.0, help='Resolution for grid boxes (default: 1.0)')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
+    parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
+    
+    
     
     args = parser.parse_args()
     main(args)
