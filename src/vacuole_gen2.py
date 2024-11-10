@@ -363,6 +363,180 @@ def plot_hollow_sphere(ax, center, outer_radius, wall_thickness, color='lightblu
     ax.plot_wireframe(x_inner, y_inner, z_inner, color=color, alpha=alpha, linewidth=0.5)
 
 
+def calculate_spheroid_metrics(spheroid, spheroids, wall_center, wall_outer_radius, wall_thickness, max_radius):
+    """
+    Calculate additional metrics for a single spheroid.
+    
+    Parameters:
+        spheroid (dict): The spheroid to calculate metrics for
+        spheroids (list): List of all spheroids
+        wall_center (tuple): Center coordinates of the wall
+        wall_outer_radius (float): Outer radius of the wall
+        wall_thickness (float): Thickness of the wall
+        max_radius (float): Maximum radius of spheroids (for local density calculation)
+    
+    Returns:
+        dict: Dictionary containing all calculated metrics
+    """
+    x, y, z = spheroid['x'], spheroid['y'], spheroid['z']
+    radius = spheroid['radius']
+    
+    # Calculate basic metrics
+    volume = (4/3) * math.pi * (radius**3)
+    distance_from_center = math.sqrt(
+        (x - wall_center[0])**2 + 
+        (y - wall_center[1])**2 + 
+        (z - wall_center[2])**2
+    )
+    
+    # Neighbor determination:
+    # A spheroid is considered a neighbor if its center is within 2.5 * max_radius distance
+    # This provides a consistent neighborhood size based on the largest possible spheroid
+    # Pros: Simple, consistent. Cons: May not reflect true biological/physical interactions
+    # Alternative methods: surface contact, Voronoi diagrams, or adaptive radius based on cell sizes
+    
+    # Calculate neighbor metrics
+    neighbors = []
+    for other in spheroids:
+        if other == spheroid:
+            continue
+        
+        dx = x - other['x']
+        dy = y - other['y']
+        dz = z - other['z']
+        center_distance = math.sqrt(dx**2 + dy**2 + dz**2)
+        surface_distance = center_distance - (radius + other['radius'])
+        
+        neighbors.append({
+            'center_distance': center_distance,
+            'surface_distance': surface_distance
+        })
+    
+    # Sort neighbors by distance
+    neighbors.sort(key=lambda x: x['center_distance'])
+    
+    # Calculate local density (within 2.5 * max_radius)
+    local_radius = 2.5 * max_radius
+    local_neighbors = [n for n in neighbors if n['center_distance'] <= local_radius]
+    local_density = len(local_neighbors) / ((4/3) * math.pi * local_radius**3)
+    
+    # Calculate wall metrics
+    wall_inner_radius = wall_outer_radius - wall_thickness
+    distance_to_wall = abs(distance_from_center - wall_inner_radius)
+    
+    return {
+        'volume': volume,
+        'distance_from_center': distance_from_center,
+        'nearest_neighbor_center_distance': neighbors[0]['center_distance'] if neighbors else None,
+        'nearest_neighbor_surface_distance': neighbors[0]['surface_distance'] if neighbors else None,
+        'num_neighbors': len(local_neighbors),
+        'local_density': local_density,
+        'distance_to_wall': distance_to_wall
+    }
+
+def write_csv_files(run_folder, run_id, args, spheroids, wall_center, wall_outer_radius, wall_thickness):
+    """
+    Write summary and detailed CSV files for the run.
+    
+    Parameters:
+        run_folder (str): Path to the run folder
+        run_id (str): Unique identifier for this run
+        args (Namespace): Command line arguments
+        spheroids (list): List of generated spheroids
+        wall_center (tuple): Center coordinates of the wall
+        wall_outer_radius (float): Outer radius of the wall
+        wall_thickness (float): Thickness of the wall
+    """
+    import csv
+    from datetime import datetime
+    
+    # Calculate global statistics
+    total_spheroid_volume = sum((4/3) * math.pi * (s['radius']**3) for s in spheroids)
+    wall_inner_radius = wall_outer_radius - wall_thickness
+    wall_volume = (4/3) * math.pi * (wall_outer_radius**3 - wall_inner_radius**3)
+    success_rate = len(spheroids) / args.N * 100
+    
+    # Write summary CSV
+    summary_file = os.path.join(run_folder, f'{run_id}_summary.csv')
+    summary_headers = [
+        'run_id', 'timestamp', 'seed', 'num_spheroids_requested', 'num_spheroids_placed',
+        'success_rate', 'min_radius', 'max_radius', 'wall_outer_radius', 'wall_thickness',
+        'x_max', 'y_max', 'z_max', 'dx', 'max_tries', 'total_spheroid_volume',
+        'wall_volume', 'total_volume'
+    ]
+    
+    with open(summary_file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=summary_headers)
+        writer.writeheader()
+        writer.writerow({
+            'run_id': run_id,
+            'timestamp': datetime.now().isoformat(),
+            'seed': args.seed,
+            'num_spheroids_requested': args.N,
+            'num_spheroids_placed': len(spheroids),
+            'success_rate': success_rate,
+            'min_radius': args.min_radius,
+            'max_radius': args.max_radius,
+            'wall_outer_radius': wall_outer_radius,
+            'wall_thickness': wall_thickness,
+            'x_max': args.x_max,
+            'y_max': args.y_max,
+            'z_max': args.z_max,
+            'dx': args.dx,
+            'max_tries': args.max_tries,
+            'total_spheroid_volume': total_spheroid_volume,
+            'wall_volume': wall_volume,
+            'total_volume': total_spheroid_volume + wall_volume
+        })
+    
+    # Write detailed CSV
+    detailed_file = os.path.join(run_folder, f'{run_id}_detailed.csv')
+    detailed_headers = [
+        'cell_id', 'type', 'x', 'y', 'z', 'radius', 'volume', 'distance_from_center',
+        'nearest_neighbor_center_distance', 'nearest_neighbor_surface_distance',
+        'num_neighbors', 'local_density', 'distance_to_wall'
+    ]
+    
+    with open(detailed_file, 'w', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=detailed_headers)
+        writer.writeheader()
+        
+        # Write spheroid rows
+        for i, spheroid in enumerate(spheroids, 1):
+            metrics = calculate_spheroid_metrics(
+                spheroid, spheroids, wall_center, wall_outer_radius, wall_thickness, args.max_radius
+            )
+            writer.writerow({
+                'cell_id': i,
+                'type': 'Body',
+                'x': spheroid['x'],
+                'y': spheroid['y'],
+                'z': spheroid['z'],
+                'radius': spheroid['radius'],
+                **metrics
+            })
+        
+        # Write wall row
+        writer.writerow({
+            'cell_id': len(spheroids) + 1,
+            'type': 'Wall',
+            'x': wall_center[0],
+            'y': wall_center[1],
+            'z': wall_center[2],
+            'radius': wall_outer_radius,
+            'volume': wall_volume,
+            'distance_from_center': 0,
+            'nearest_neighbor_center_distance': None,
+            'nearest_neighbor_surface_distance': None,
+            'num_neighbors': None,
+            'local_density': None,
+            'distance_to_wall': 0
+        })
+    
+    logging.info(f"Generated summary CSV: {summary_file}")
+    logging.info(f"Generated detailed CSV: {detailed_file}")
+
+
 def main(args):
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -381,9 +555,6 @@ def main(args):
         args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
     random.seed(args.seed)
     np.random.seed(args.seed)
-
-    # Setup logging and get stats file path
-    stats_file = setup_logging(run_folder, args.seed)
 
     logging.info(f"Starting new run with ID: {run_id}")
     logging.info(f"Arguments: {args}")
@@ -421,13 +592,9 @@ def main(args):
 
     if len(spheroids) < N_SPHEROIDS:
         print(f"Only placed {len(spheroids)} out of {N_SPHEROIDS} spheroids.")
-    
-   
-    #we will do a function call here that writes the spheroids to a csv file 
-    #spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, 
-    #compute and write the apb volume,apb st dev,apb mean, apb radius 
-    #every spheroid gets its own row including the vacuole  
-   
+
+    # Generate CSV files
+    write_csv_files(run_folder, run_id, args, spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS)
 
     # Generate PIFF file
     generate_piff_file(spheroids, wall_center, WALL_OUTER_RADIUS, WALL_THICKNESS, dx=DX, filename=filename)
@@ -435,12 +602,13 @@ def main(args):
     # Save a copy of the PIFF file in the run folder
     shutil.copy(filename, os.path.join(run_folder, filename))
     logging.info(f"Saved copy of PIFF file in run folder: {run_folder}")
-    
+
     # Save the PIFF file in the Simulation folder (for cc3d use)
     cc3d = './CompuCell3D/cc3dSimulation/Simulation'
     shutil.copy(filename, os.path.join(cc3d, filename))
 
     logging.info(f"Run {run_id} completed successfully.")
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
