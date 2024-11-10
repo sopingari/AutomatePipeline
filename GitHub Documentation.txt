@@ -1,0 +1,78 @@
+# AutomatePipeline Repository Cloning Guide
+Version 1.0
+
+## Overview
+This documentation provides step-by-step instructions for cloning the AutomatePipeline repository from GitHub using SSH authentication.
+
+## Repository Information
+- Repository URL: `git@github.com:CinmonTost/AutomatePipeline.git`
+- Authentication Method: SSH
+- Host: github.com
+
+## Prerequisites
+- Linux operating system
+- Git installed
+- GitHub account
+- Repository access permissions
+
+## Step-by-Step Cloning Process
+
+### 1. SSH Key Setup
+If you haven't configured SSH keys:
+
+```bash
+# Generate new SSH key
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Start SSH agent
+eval "$(ssh-agent -s)"
+
+# Add SSH key to agent
+ssh-add ~/.ssh/id_ed25519
+```
+
+### 2. GitHub Configuration
+1. Display your public SSH key:
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+2. Add the key to GitHub:
+   - Navigate to GitHub Settings → SSH and GPG keys
+   - Select "New SSH key"
+   - Paste your public key content
+   - Save the key
+
+### 3. Verify SSH Connection
+Test GitHub connectivity:
+```bash
+ssh -T git@github.com
+```
+
+Expected successful response:
+```
+Hi username! You've successfully authenticated, but GitHub does not provide shell access.
+```
+
+### 4. Clone Repository
+Execute the clone command:
+```bash
+git clone git@github.com:CinmonTost/AutomatePipeline.git
+```
+
+Expected output:
+```
+Cloning into 'AutomatePipeline'...
+remote: Enumerating objects: XX, done.
+remote: Counting objects: 100% (XX/XX), done.
+remote: Compressing objects: 100% (XX/XX), done.
+remote: Total XX (delta XX), reused XX (delta XX), pack-reused XX
+Receiving objects: 100% (XX/XX), done.
+Resolving deltas: 100% (XX/XX), done.
+```
+
+### 5. Access Repository
+Navigate to the cloned repository:
+```bash
+cd AutomatePipeline
+```
