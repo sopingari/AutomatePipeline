@@ -13,7 +13,7 @@ import stat
 #   This script serves as the master control program for the AVS project, providing a menu-driven interface
 #   to run various components of the simulation pipeline.
 #
-#   Note: The interface (Pipeline_Interface.py), vacuole_gen2.py, and ccRunScript.sh are all located within the same src folder.
+#   Note: The interface (Pipeline_Interface.py), vacuole_gen.py, and ccRunScript.sh are all located within the same src folder.
 #         All outputs will remain within the src folder as well.
 #
 #   Important Note: AVS software was developed and tested primarily on Windows OS. AVS has not (yet) been
@@ -77,7 +77,7 @@ def option_one():
         print("Invalid input. Please enter a positive integer.")
         return
 
-    # Prompt for N (number of spheroids) required by vacuole_gen2.py
+    # Prompt for N (number of spheroids) required by vacuole_gen.py
     print("Enter the number of spheroids (N) to generate:")
     try:
         N_spheroids = int(input())
@@ -90,7 +90,7 @@ def option_one():
     for i in range(1, num_runs+1):
         print(f"\n--- Running pipeline iteration {i} ---")
 
-        # Step 1: Run vacuole_gen2 to generate the initial conditions
+        # Step 1: Run vacuole_gen to generate the initial conditions
         vacuole_gen_main(N_spheroids)
 
         # Step 2: Run CC3D simulation
@@ -100,7 +100,7 @@ def option_one():
 
 def option_two():
     print("--- Option Two Selected ---")
-    # Prompt for N (number of spheroids) required by vacuole_gen2.py
+    # Prompt for N (number of spheroids) required by vacuole_gen.py
     print("Enter the number of spheroids (N) to generate:")
     try:
         N_spheroids = int(input())
@@ -134,12 +134,12 @@ def option_six():
     print("--- Option Six Complete ---")
 
 def vacuole_gen_main(N_spheroids):
-    print("Running vacuole_gen2 to generate initial conditions...")
+    print("Running vacuole_gen to generate initial conditions...")
 
-    # Build the command to execute vacuole_gen2.py with the required --N argument
+    # Build the command to execute vacuole_gen.py with the required --N argument
     command = [
         sys.executable,  # Path to the Python interpreter
-        'vacuole_gen2.py',  # Path to the vacuole_gen2.py script
+        'vacuole_gen.py',  # Path to the vacuole_gen.py script
         '--N', str(N_spheroids)
     ]
 
@@ -147,9 +147,9 @@ def vacuole_gen_main(N_spheroids):
     src_folder = os.path.dirname(os.path.abspath(__file__))  # Get the directory of AVS.py (src folder)
     try:
         subprocess.run(command, check=True, cwd=src_folder)
-        print("vacuole_gen2.py has been executed successfully.")
+        print("vacuole_gen.py has been executed successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while running vacuole_gen2.py: {e}")
+        print(f"An error occurred while running vacuole_gen.py: {e}")
 
 def run_cc3d_script():
     print("Running CC3D simulation using runScript.sh...")
