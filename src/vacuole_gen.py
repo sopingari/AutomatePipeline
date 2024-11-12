@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 import shutil
 import json
+import xml.etree.ElementTree as ET
 #genballs
 import pandas as pd
 from scipy.stats import ortho_group
@@ -516,6 +517,7 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     """
     piff_lines = []
     cell_id = 1  # Start CellID from 1
+    max_voxel_value = -float('inf')  # Initialize max voxel value as negative infinity
 
     # Separate vacuole and spheroids
     vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
@@ -533,12 +535,6 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
         z_min = z0 - R
         z_max = z0 + R
 
-        # Generate grid within bounding box
-        '''
-        x_vals = np.arange(x_min, x_max, dx)
-        y_vals = np.arange(y_min, y_max, dx)
-        z_vals = np.arange(z_min, z_max, dx)
-        '''
         # Ensure all inputs to np.arange are scalars
         x_min = float(x_min.item()) if isinstance(x_min, np.ndarray) else float(x_min)
         x_max = float(x_max.item()) if isinstance(x_max, np.ndarray) else float(x_max)
@@ -564,6 +560,10 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
                     if distance_sq <= R ** 2:
                         line = f"{cell_id} Body {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
                         piff_lines.append(line)
+                        
+                        # Track the maximum voxel value
+                        max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+                        
         cell_id += 1  # Increment CellID for the next spheroid
 
     # Generate boxes for the vacuole (Wall)
@@ -614,14 +614,20 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
                     line = f"{wall_cell_id} Wall {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
                     piff_lines.append(line)
 
+                    # Track the maximum voxel value
+                    max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+                    
     # Write the PIFF content to a file
     with open(filename, 'w') as f:
         for line in piff_lines:
             f.write(line + '\n')
 
     print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+    print(f"Greatest voxel value found: {max_voxel_value}")
     logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
 
+    xml_file_path = './CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'
+    update_dimensions_in_xml(xml_file_path, max_voxel_value + 10)
 
 def visualize_spheroids_and_wall(spheroids, wall_center, wall_outer_radius, wall_thickness, x_max, y_max, z_max):
     """
@@ -710,7 +716,22 @@ def plot_hollow_sphere(ax, center, outer_radius, wall_thickness, color='lightblu
     y_inner = center[1] + inner_radius * np.outer(np.sin(u), np.sin(v))
     z_inner = center[2] + inner_radius * np.outer(np.ones(np.size(u)), np.cos(v))
     ax.plot_wireframe(x_inner, y_inner, z_inner, color=color, alpha=alpha, linewidth=0.5)
+    
+def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
+    # Parse the XML file
+    tree = ET.parse(xml_file_path)
+    root = tree.getroot()
 
+    # Find the <Dimensions> element
+    for elem in root.iter('Dimensions'):
+        # Update the x, y, and z attributes with the greatest voxel value
+        elem.set('x', str(greatest_voxel_value))
+        elem.set('y', str(greatest_voxel_value))
+        elem.set('z', str(greatest_voxel_value))
+        print(f"Updated dimensions to: x={greatest_voxel_value}, y={greatest_voxel_value}, z={greatest_voxel_value}")
+
+    # Save the changes back to the XML file
+    tree.write(xml_file_path)
 
 def main(args):
     # Generate a unique run ID based on the current date and time
