@@ -125,7 +125,7 @@ def option_four():
 
 def option_five():
     print("--- Option Five Selected ---")
-    print("AVS Stats functionality is not implemented yet.")
+    run_AVSStats()
     print("--- Option Five Complete ---")
 
 def option_six():
@@ -184,6 +184,25 @@ def run_cc3d_script():
         print(f"CC3D simulation completed in {end_time - start_time:.2f} seconds.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running runScript.sh: {e}")
+
+def run_AVSStats():
+    print("Running AVSStats...")
+    command = [
+        sys.executable,
+        'AVSStats.py'
+    ]
+
+    src_folder = os.path.dirname(os.path.abspath(__file__))
+
+    try:
+        # Run AVSStats.py in the src folder
+        subprocess.run(command, check=True, cwd=src_folder)
+        print("AVSStats has been executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running AVSStats: {e}")
+    except FileNotFoundError:
+        print("AVSStats.py not found. Please ensure it exists in the src folder.")
+
 
 def read_readme():
     print("Reading the ReadMe file...")
