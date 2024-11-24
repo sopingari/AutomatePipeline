@@ -17,3 +17,4 @@ vtk==9.2.6
 zstandard==0.23.0
 pandas==2.2.3
 scipy==1.14.1
+statsmodels==0.14.4
