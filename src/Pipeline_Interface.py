@@ -86,13 +86,12 @@ def option_one():
     except ValueError:
         print("Invalid input. Please enter a positive integer for N.")
         return
-    use_model_parameters = ask_use_model_parameters()
 
     for i in range(1, num_runs+1):
         print(f"\n--- Running pipeline iteration {i} ---")
 
         # Step 1: Run vacuole_gen to generate the initial conditions
-        vacuole_gen_main(N_spheroids, use_model_parameters)
+        vacuole_gen_main(N_spheroids)
 
         # Step 2: Run CC3D simulation
         run_cc3d_script()
@@ -110,10 +109,8 @@ def option_two():
     except ValueError:
         print("Invalid input. Please enter a positive integer for N.")
         return
-    # Ask if the user wants to use model_parameters.txt
-    use_model_parameters = ask_use_model_parameters()
 
-    vacuole_gen_main(N_spheroids, use_model_parameters)
+    vacuole_gen_main(N_spheroids)
     print("--- Option Two Complete ---")
 
 def option_three():
@@ -136,92 +133,18 @@ def option_six():
     read_readme()
     print("--- Option Six Complete ---")
 
-def ask_use_model_parameters():
-    while True:
-        print("Do you want to use parameters from model_parameters.txt? (y/n):")
-        choice = input().strip().lower()
-        if choice in ['y', 'yes']:
-            return True
-        elif choice in ['n', 'no']:
-            return False
-        else:
-            print("Invalid input. Please enter 'y' or 'n'.")
-            
-def read_parameters(filename):
-    parameters = {}
-    try:
-        with open(filename, 'r') as f:
-            for line in f:
-                # Remove comments and whitespace
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
-                if '#' in line:
-                # Remove inline comments
-                    line = line.split('#', 1)[0].strip()
-                # Split parameter name and value
-                if '=' in line:
-                    name, value = line.split('=', 1)
-                    name = name.strip()
-                    value = value.strip()
-                    # Store as string; we can handle types later if needed
-                    parameters[name] = value
-    except FileNotFoundError:
-        print(f"Parameter file {filename} not found. Proceeding with default parameters.")
-    return parameters
+def vacuole_gen_main(N_spheroids):
+    print("Running vacuole_gen to generate initial conditions...")
 
-def map_parameters(parameters):
-    # Mapping from text file parameter names to vacuole_gen.py's expected command-line argument names
-    parameter_mapping = {
-        'Wall_Radius_mu': 'wall_Radius_Mu',
-        'Wall_Radius_sigma': 'wall_Radius_Sigma',
-        'Body_radius_mu': 'mu',
-        'Body_radius_sigma': 'sigma',
-        'Body_number': 'bodies',
-        # Add more mappings if necessary
-    }
-
-    mapped_parameters = {}
-    for param_name, value in parameters.items():
-        if param_name in parameter_mapping:
-            method_param = parameter_mapping[param_name]
-            mapped_parameters[method_param] = value
-    return mapped_parameters
-
-
-def vacuole_gen_main(N_spheroids, use_model_parameters):
-    print("\nRunning vacuole_gen to generate initial conditions...")
-
-    # Build the base command to execute vacuole_gen.py
+    # Build the command to execute vacuole_gen.py with the required --N argument
     command = [
-        sys.executable,          # Path to the Python interpreter
-        'vacuole_gen.py'         # Path to the vacuole_gen.py script
+        sys.executable,  # Path to the Python interpreter
+        'vacuole_gen.py',  # Path to the vacuole_gen.py script
+        '--N', str(N_spheroids)
     ]
 
-    if use_model_parameters:
-       # Path to model_parameters.txt in attributes folder
-        model_params_path = os.path.join('attributes', 'Model_Parameters.txt')
-
-        # Read parameters from model_parameters.txt
-        parameters = read_parameters(model_params_path)
-        method_parameters = map_parameters(parameters)
-
-        if method_parameters:
-            # Add mapped parameters as command-line arguments
-            for key, value in method_parameters.items():
-                command.extend([f'--{key}', str(value)])
-            print("Using parameters from model_parameters.txt:")
-            for key, value in method_parameters.items():
-                print(f"  {key} = {value}")
-        else:
-            print("No matching parameters found in model_parameters.txt. Running with default parameters.")
-    else:
-        # Add the '--N' argument to the command
-        command.extend(['--N', str(N_spheroids)])
-        print(f"Using --N argument with value: {N_spheroids}")
-
     # Execute the command in the src folder
-    src_folder = os.path.dirname(os.path.abspath(__file__))  # Get the directory of pipeline_interface.py
+    src_folder = os.path.dirname(os.path.abspath(__file__))  # Get the directory of AVS.py (src folder)
     try:
         subprocess.run(command, check=True, cwd=src_folder)
         print("vacuole_gen.py has been executed successfully.")
@@ -284,7 +207,8 @@ def run_SliceStats():
     except FileNotFoundError:
         print("SliceStats.py not found. Please ensure it exists in the src folder.")
         
-    print("--- Option Four Complete ---")       
+    print("--- Option Four Complete ---")   
+    
 
 def run_AVSStats():
     print("Running AVSStats...")
