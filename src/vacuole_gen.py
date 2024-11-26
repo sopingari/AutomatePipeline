@@ -508,7 +508,7 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     print(f"Greatest voxel value found: {max_voxel_value}")
     logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
 
-    xml_file_path = '../cc3dSimulation/Simulation/clustertest.xml'
+    xml_file_path = './CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'
     update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
 
 def visualize_spheroids_and_wall(spheroids, wall_center, wall_outer_radius, wall_thickness, x_max, y_max, z_max):
