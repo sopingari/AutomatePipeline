@@ -156,8 +156,9 @@ def read_parameters(filename):
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
+                if '#' in line:
                 # Remove inline comments
-                line = line.split('#', 1)[0]
+                    line = line.split('#', 1)[0].strip()
                 # Split parameter name and value
                 if '=' in line:
                     name, value = line.split('=', 1)
@@ -198,8 +199,11 @@ def vacuole_gen_main(N_spheroids, use_model_parameters):
     ]
 
     if use_model_parameters:
+       # Path to model_parameters.txt in attributes folder
+        model_params_path = os.path.join('attributes', 'Model_Parameters.txt')
+
         # Read parameters from model_parameters.txt
-        parameters = read_parameters('model_parameters.txt')
+        parameters = read_parameters(model_params_path)
         method_parameters = map_parameters(parameters)
 
         if method_parameters:
