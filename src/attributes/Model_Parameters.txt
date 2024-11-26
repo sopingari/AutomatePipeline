@@ -1,20 +1,21 @@
 #All measurements in nm.  Default values mostly pulled from Cawthon et al. 2008 BBRC 503:651 supplemental data.
 
 # Simulation parameters
-Iterate_Over = 1 # Choose "1" to change body size each iteration, or "2" to keep size constant but change body number each iteration
+Iterate_Over = "size" # Choose "size" to change body size each iteration, or "number" to keep size constant but change body number each iteration, "both" to change both
 Sample_Size = 1000 #Number of virutal vacuoles generated and sliced for each combination of parameters.  Default 1000
-Scale_Factor = 8 #larger scale factors make the simulation faster but less accurate. Used in InputAdjuster and SliceStats. Default 8
+Scale_Factor = 8 # nm per voxel size. Larger scale factors make the simulation faster but less accurate. Used in InputAdjuster and SliceStats. Default 8.  Can also use 16 for testing
 
 
 #Vacuole parameters (These may vary between experiments, and can be found from the experimental data using simpler methods already published)
-Wall_Radius_mu = 6.8 
-Wall_Radius_sigma = 0.34
+#This is used to generate the inner radius of the vacuole; the outer radius will be 5% greater
+Wall_Radius_mu = 6.8   # log nm
+Wall_Radius_sigma = 0.34  # log nm
 
 #Body size iteration parameters (if iterating over body size)
-Body_radius_starting_mu = 4.7 #Will iterate up from this in increments of 0.1 until ending mu reached.  Choose 4.7 for normal-sized bodies, 4.2 to explore a wider range
-Body_radius_ending_mu = 5.2 #Will iterate up to and including this value
-Body_radius_staring_sigma = 0.25 #Will iterate up from this in increments of 0.05  Start with 0.25 for normal-sized bodies, 0.2 to explore a wider range  
-Body_radius_ending_sigma = 0.4 #Will iterate up to and including this value.  Choose 0.4 for normal-sized bodies, 0.45 to explore a wider range
+Body_radius_starting_mu = 4.7 # (log nm) Will iterate up from this in increments of 0.1 until ending mu reached.  Choose 4.7 for normal-sized bodies, 4.2 to explore a wider range
+Body_radius_ending_mu = 5.2 # (log nm) Will iterate up to and including this value
+Body_radius_starting_sigma = 0.25 # (log nm) Will iterate up from this in increments of 0.05  Start with 0.25 for normal-sized bodies, 0.2 to explore a wider range  
+Body_radius_ending_sigma = 0.4 # (log nm) Will iterate up to and including this value.  Choose 0.4 for normal-sized bodies, 0.45 to explore a wider range
 
 # Sphericity paramter (p-value).  Setting this to 2 will generate spheres.  
 pvals = 2
@@ -23,20 +24,18 @@ pvals = 2
 Body_number = 40
 
 #Fixed body parameters - should be determined based on the results from iterating over body size
-Body_radius_mu = 5.0
-Body_radius_sigma = 0.35
+Body_radius_mu = 5.0 # log nm
+Body_radius_sigma = 0.35 # log nm
 
 #Body number iteration parameters - to use for iterating over body number (log normal distribution), once body size has been determined
 # Start with some reasonable guesses based on the number of observed crossections. 
-Body_number_starting_mu = 3.0 #Will iterate up from this in increments of .05 Start with a reasonable guess based on the number of observed crossections, then take the natural log of that value (e.g ln(20) = 3.0))
-Body_number_ending_mu = 3.7 #Will iterate up to and including this value.  ln(40) = 3.69
-Body_number_starting_sigma = 0 #Will iterate up from this in increments of 0.1 
-Body_number_ending_sigma = 0.6 #Will iterate up to (and including) this value
+Body_number_starting_mu = 3.0 # (log count) Will iterate up from this in increments of .05 Start with a reasonable guess based on the number of observed crossections, then take the natural log of that value (e.g ln(20) = 3.0))
+Body_number_ending_mu = 3.7 # (log count) Will iterate up to and including this value.  ln(40) = 3.69
+Body_number_starting_sigma = 0 # (log count) Will iterate up from this in increments of 0.1 
+Body_number_ending_sigma = 0.6 # (log count) Will iterate up to (and including) this value
 
-#TEM parameters
-unScaledSliceThickness = 70  # thickness of ultrathin section; used in SliceStats
-unScaledVacMin = 300.0  # only cells sections with a visible vacuole of at least this radius were measured; used in SliceStats 
-unScaledminBodyRadius = 50 # body sections with a radius smaller than this are ignored; used in SliceStats
+#TEM parameters - used only in SliceStats
+unScaledSliceThickness = 70  # thickness of ultrathin section in nm; used in SliceStats
+unScaledVacMin = 300.0  # only cells sections with a visible vacuole (in nm) of at least this radius were measured; used in SliceStats 
+unScaledminBodyRadius = 50 # body sections with a radius smaller than this (in nm) are ignored; used in SliceStats
 
-#Automatically generated parameters.  These are for the different modules to pass information to each other; do not edit these
-Wall_X_Coordinate = 130 #central coordinate of the vacuole wall.  Should be pulled from sphereGen. Will this be the same for every cell even as the vacuole size varies?  It would make things easier if it were.  Used in SliceStats.
