@@ -120,7 +120,7 @@ def option_three():
 
 def option_four():
     print("--- Option Four Selected ---")
-    print("Slice Stats functionality is not implemented yet.")
+    run_SliceStats()
     print("--- Option Four Complete ---")
 
 def option_five():
@@ -184,6 +184,31 @@ def run_cc3d_script():
         print(f"CC3D simulation completed in {end_time - start_time:.2f} seconds.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running runScript.sh: {e}")
+        
+def run_SliceStats():
+    print("--- Option Four Selected ---")
+    print("Running SliceStats.py...")
+    
+    # Build the command to execute SliceStats.py
+    command = [
+        sys.executable,  # Path to the Python interpreter
+        'SliceStats.py',  # Path to the SliceStats.py script
+    ]
+    
+    # Define the folder where SliceStats.py is located
+    src_folder = os.path.dirname(os.path.abspath(__file__))
+    
+    try:
+        # Run SliceStats.py in the src folder
+        subprocess.run(command, check=True, cwd=src_folder)
+        print("SliceStats.py has been executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running SliceStats.py: {e}")
+    except FileNotFoundError:
+        print("SliceStats.py not found. Please ensure it exists in the src folder.")
+        
+    print("--- Option Four Complete ---")   
+    
 
 def run_AVSStats():
     print("Running AVSStats...")
