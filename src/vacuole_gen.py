@@ -88,7 +88,9 @@ def move_along_dir(df,pos_array,ii,direction,stepsize,placeVacuole=False):
     # Now let's also incorporate the p-value of the APB we're trying to place:
     dists = (np.sum(np.abs(pos_array[0:ii,:]-pos)**apvals_e,axis=1))**(1.0/apvals)
     if placeVacuole:
-        close_enough = (dists + df.head(ii)["r"]) <= vacRad
+        close_enough = (dists + df.head(ii)["r"]) <= vacRadInner # aross15 updating from vacRad to vacRadInner
+        # note that we do still want to use df's "r" column which is the APB's _outer_ radius,
+        # and compare those with the vacuole's _inner_ radius.
         stopflag = not all(close_enough)
     else:
         # Make a set of logicals (True/False), to say whether this APB
@@ -287,12 +289,12 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     vacp = 2.0
     dists_to_origin = (np.sum(np.abs(pos_array_shifted_to_origin)**vacp,axis=1))**(1.0/vacp)
     dists_plus_rad = dists_to_origin + r
-    vacRad = 0
+    vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
     iterCount = 0
-    while any(dists_plus_rad > vacRad)and(iterCount<maxVacuoleIterations):
-        #generate new vacRad
-        r_normals = rng.standard_normal(1)*wall_Radius_Sigma+wall_Radius_Mu
-        vacRad = np.exp(r_normals) # turn the normals into log-normals
+    while any(dists_plus_rad > vacRadInner)and(iterCount<maxVacuoleIterations):
+        #generate new vacRadInner according to a lognormal
+        r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
+        vacRadInner = np.exp(r_normals) # turn the normals into log-normals
         iterCount += 1
     if(iterCount>=maxVacuoleIterations):
         print("Warning: Maxed Out on Vacuole Size Iterations.")
@@ -302,18 +304,20 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
         print(f"{wall_Radius_Mu}")
         vacRad = -9999
 
+    vacRadOuter = 1.05*vacRadInner
+
     # Done with checking, now shift everything:
-    pos_array_shifted_to_1st_octant = pos_array_shifted_to_origin + vacRad
+    pos_array_shifted_to_1st_octant = pos_array_shifted_to_origin + vacRadOuter
     r_and_pos_array = np.hstack((np.expand_dims(r,axis=1),pos_array_shifted_to_1st_octant))
-    
+
     # Then add the vacuole wall as the first item, and radius in the first column.
     # from R:    cellSize=2*vacRad ; output_spheregen <- rbind(cellSize/2, output_spheregen)
-    vac_pos_array = np.ones_like(pos_array[0,:])*vacRad #  x, y, and z if needed.
-          
-    vac_r_and_pos = np.hstack((vacRad,vac_pos_array))
+    vac_pos_array = np.ones_like(pos_array[0,:])*vacRadOuter #  x, y, and z if needed.
+
+    vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner since APBs have outer radius listed as "r"
     r_and_pos_array_w_vac = np.vstack((vac_r_and_pos,r_and_pos_array))
     pos_array = np.delete(r_and_pos_array_w_vac,0,axis=1) # copy everything except 1st col, which is r.
-    d = {'bodynum': -100, 'bodyType':'Vacuole', 'r': vacRad,'p':vacp}
+    d = {'bodynum': -100, 'bodyType':'Vacuole', 'r': vacRadOuter,'p':vacp, 'rInner':vacRadInner} #aross15 adding rInner column, 0 for all APBs; "r" column is actually rOuter.
     df_just_vac = pd.DataFrame(data=[d])
     #MV Pandas Concatenation of Vac Parameter and Dataframe
     df = pd.concat([df_just_vac,df],ignore_index=True)
@@ -345,7 +349,7 @@ def log_statistics(args, df):
         "num_spheroids_placed": len(spheroids),
         "min_radius": args.min_radius,
         "max_radius": args.max_radius,
-        "vacuole_radius": vacuole['r'],
+        "vacuole_outer_radius": vacuole['r'], # aross15 making it more clear
         "dx": args.dx,
         "optimmaxiter": args.optimmaxiter
     }
@@ -455,7 +459,7 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     wall_cell_id = cell_id  # Assign a unique CellID for the wall
     x0, y0, z0 = vacuole['x'], vacuole['y'], vacuole['z']
     R_outer = vacuole['r']
-    R_inner = R_outer - vacuole['r'] * 0.05  # Adjust thickness as needed
+    R_inner = vacuole['rInner'] # aross15
 
     # Define bounding box for the wall
     x_min = x0 - R_outer
@@ -751,6 +755,7 @@ def write_combined_csv(run_folder, run_id, args, df):
     spheroids = df[df['bodyType'] == 'APB']
     
     # Calculate global statistics
+    # as if it was a solid ball, rather than just the volume of the wall itself without the hollow interior. #aross15
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
     vacuole_volume = (4/3) * np.pi * (vacuole['r'].item() if isinstance(vacuole['r'], np.ndarray) else vacuole['r'])**3
     success_rate = len(spheroids) / args.N * 100
@@ -774,7 +779,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Success Rate (%)', success_rate),
                 ('Minimum Radius', args.min_radius),
                 ('Maximum Radius', args.max_radius),
-                ('Vacuole Radius', float(vacuole['r'].item() if isinstance(vacuole['r'], np.ndarray) else vacuole['r'])),
+                ('Vacuole Outer Radius', float(vacuole['r'].item() if isinstance(vacuole['r'], np.ndarray) else vacuole['r'])), #aross15
                 ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
                 ('Maximum Tries', args.max_tries),
