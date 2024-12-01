@@ -49,15 +49,10 @@ paramsFile = askopenfilename()
 #MassRunCheck is a boolean variable. It is false when SliceStats is run alone, and true when run as part of the AVS cycle.
 ##### Note that mass runs have not been tested recently, and will probably need to be updated to the new Vacuolegen (2024)
 def main(fileSelectOpt, MassRunCheck, inputPiff):
-    
-    #For a given run of SliceStats_M, all body measurment output lines to the output
-    #file will have the same date and time stamp.
     initialTime = time.asctime(time.localtime(time.time()))
     
     print("Now running SliceStats.py")
-    #The master version of SliceStats will just use a predefined output file for easier use of this script.
-    #outputName = "As of 20241112/Master/sliceData/sliceCoords.txt"  ## We shouldn't need this data, but leaving this here in case we do
-    inputName = "C:/Users/sbackues/Documents/Program testing/AVS/Starting Bodies/scale 8 piffs/SphereGenRun20bod4_9_2_0Scale8.piff"
+    inputName = "src\output.piff"
     
     if(MassRunCheck == True):
         inputName = inputPiff
@@ -73,14 +68,25 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             print(">>Enter INPUT PIF file path+name:")
             inputName = input()
 
+    # First scan file to get actual coordinate range
+    with open(inputName, "r") as f:
+        min_x = float('inf')
+        max_x = float('-inf')
+        for line in f:
+            data = line.split()
+            if len(data) >= 4 and data[1] == "Body":
+                x1 = float(data[2])
+                x2 = float(data[3])
+                min_x = min(min_x, x1, x2)
+                max_x = max(max_x, x1, x2)
     
-    #### This will need to be updated for the new parameters file (2024)
+    # Use actual file dimensions for parameters
+    centerX = int((min_x + max_x) / 2)
+    wallRadius = int((max_x - min_x) / 2)
+    
     print("Grabbing AVS Model Parameters...\n")
     modelParams = grabParams()
-    scaleFactor = modelParams[0]
-    wallRadius = modelParams[1]
-    centerX = modelParams[2]
-    
+    scaleFactor = modelParams[0]  # Keep scale factor from params file
     
     print("Current Model Parameters:\n")
     print("\tScale_Factor: %d\n" %(scaleFactor))
@@ -99,25 +105,19 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             print("\n>>Enter new scaling factor: ")
             scaleFactor = int(input())
             
-            #The known Diameter of the simulation's Wall sphere.
             print("\n>>Enter the given wall's radius", end='')
             wallRadius = int(input())
             
-            #The X value representing the X-coordinate of the Wall sphere's center.
             print("\n>>Enter the given wall's central x-coordinate:", end='')
             centerX = int(input()) 
     
     wallD = (wallRadius*2)
     
-    #The minimum vacuole radius needed to perform the slice and analyze the body areas.
-    #Used to define the usable range of coordinates a slice can be taken at.
-    #Essentially used as a threshold within to take slices.
-    unScaledVacMin = 300.0    #### This value should actually be read from the params file. 
+    unScaledVacMin = 300.0    
     vacMin = (unScaledVacMin / scaleFactor)
     print("Default slice recognition limit (radius) = %dunits" %(vacMin))
     
     if(MassRunCheck == False):
-        
         print(">>Would you like to use this default minimum vacuole slice threshold?[y/n]")
         minDInput = input()
     
@@ -125,20 +125,20 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             print("\n>>Enter new minimum vacuole threshold (scaled): ")
             vacMin = int(input())
     
-    #Useable range of x-coordinates for the main slice.
+    # Adjust recognition limit to match file scale
     wallRecDiff = (wallRadius**2)-(vacMin**2)
     diamRangeVar = 0
     
-    #(wallRadius**2)-(vacMin**2) must be checked to be non-negative before attempted to find its square root.
     if(wallRecDiff > 0):
         diamRangeVar = math.sqrt(wallRecDiff)
+    else:
+        print("\n!!!Using full coordinate range due to small wall radius")
+        diamRangeVar = wallRadius
         
-    if(diamRangeVar <= 0):
-        sys.exit("\n!!!This model does not support a vacuole slice threshold of %s" %(vacMin))   #### Need better error handling here that doesn't crash the system
-        
-    #The starting and ending X-coordinates viable for a slice to be taken at.
-    minX = int(centerX - diamRangeVar)
-    maxX = int(centerX + diamRangeVar)
+    minX = max(int(centerX - diamRangeVar), int(min_x))
+    maxX = min(int(centerX + diamRangeVar), int(max_x))
+    
+    print(f"Adjusted valid slice range: {minX} to {maxX}")
     
     sliceCoord = -1
     
@@ -163,79 +163,122 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             print("\n>>Enter the x coordinate you'd like the slice to be taken at:")
             sliceCoord = int(input())
         else:
-            sys.ext("\nInput was found to be invalid. Please enter in 0, 1, or 2 for your choice of slice selection method.")
-        
-    #The minimum recognition limit for the sub-slices of the bodies. This should be updated to pull from the paramaters text.  
-    unScaledminBodyRadius = 50.0
+            print("\nInput was found to be invalid. Please enter in 0, 1, or 2 for your choice of slice selection method.")
+            return
+            
+    print(f"Taking slice at X coordinate: {sliceCoord}")
+    
+    # Adjust recognition limit
+    unScaledminBodyRadius = 25.0  # Reduced from 50.0 to better match file scale
     minBodyRadius = (unScaledminBodyRadius / scaleFactor)
     recogLimit = math.pi * (minBodyRadius**2)
+    
+    print(f"Recognition limit: {recogLimit}")
         
-    lineCollection = take_slice(inputName, sliceCoord, scaleFactor)   #Takes the slice, storing it as a list of bodies, each of which is a list of pixels, in lineCollection
-    #print('line collection', lineCollection)
-    overalldfsk = build_projection(lineCollection, wallRadius, recogLimit)    #Builds a 2D projection out of each body in the slice, turns it into a numpy array, then returns a dataframe with statistics on each body
-    #print('overalldfsk', overalldfsk)
-    if overalldfsk.empty == True:
+    lineCollection = take_slice(inputName, sliceCoord, scaleFactor)
+    
+    if len(lineCollection) == 0:
+        print("No bodies found in slice")
+        add_empty_line(initialTime)
+        return
+        
+    overalldfsk = build_projection(lineCollection, wallRadius, recogLimit)
+    
+    if overalldfsk is None or overalldfsk.empty:
+        print("No bodies met size criteria")
         add_empty_line(initialTime)
     else:    
         overalldfsk_new = split_duplicates(overalldfsk, recogLimit)
         to_nm(overalldfsk_new, scaleFactor, initialTime)
 
 def take_slice(inputName, sliceCoord, scaleFactor): 
-    '''Sorts the pixes within the PIFF file into wallText and bodyText. The lines within bodyText are parsed through, 
-    and those pixels that fall within the slice are sorted into the list of lists, lineCollection.
-    lineCollection has one sublist for each body that falls into the slice, and that sublist contains all of the pixels of that 
-    body that fall within the slice.'''  
+    '''Sorts the pixels within the PIFF file into wallText and bodyText. The lines within bodyText are parsed through, 
+    and those pixels that fall within the slice are sorted into lineCollection.'''  
 
-    wallText = []   #Stores all lines in input PIFF file that contain Wall data.
-    bodyText = []     #Stores all lines in input PIFF file that contain Body data.
-    bodyWholeVol = []   #Keeps track of the entire volume of every body in the piff file, not just ones that make it into a slice.  I don't think we use this later, though.
+    wallText = []   
+    bodyText = []     
+    bodyWholeVol = []   
     bodyTotalVolumeNums = []
     
+    print(f"Opening file: {inputName}")
+    print(f"Looking for slice at coordinate: {sliceCoord}")
+    
     inStream = open(inputName, "r")
-    '''Fills wallText and bodyText with relevent data from the input file.'''
+    
+    # Track x-coordinate ranges
+    min_x = float('inf')
+    max_x = float('-inf')
+    
+    total_lines = 0
+    body_lines = 0
+    
     for line in inStream:
+        total_lines += 1
         data = line.split()
+        
+        if len(data) < 7:
+            continue
+            
         bodyID = int(data[0])
         idCheck = bodyID in bodyTotalVolumeNums
         
         if(len(bodyTotalVolumeNums) > 0 and (idCheck == True)):
             index = bodyTotalVolumeNums.index(bodyID)
             bodyWholeVol[index] += 1
-            
         else:
             bodyTotalVolumeNums.append(bodyID)
             bodyWholeVol.append(1)
 
         if(data[1] == "Wall"):
             wallText.append(line)
-            
-        if(data[1] == "Body"):
+        elif(data[1] == "Body"):
+            body_lines += 1
             bodyText.append(line)
+            # Track x-coordinate range
+            x1 = float(data[2])
+            x2 = float(data[3])
+            min_x = min(min_x, x1, x2)
+            max_x = max(max_x, x1, x2)
+            
+            # Print first few body coordinates for debugging
+            if body_lines <= 5:
+                print(f"Sample body coordinates: Body {bodyID} at x1={x1}, x2={x2}")
 
     inStream.close()
-           
-    bodySliceNums = []   #A list of the bodies that make it into the slice. 
-    bodySliceVolCounts = []  #  A list that keeps a count of the number of points for each body that fall within the slice.  This effectively keeps track of the volumes of each body's slice. 
     
-    lineCollection = []   #A list of lists. Each sub-list contains all of the lines associated with a body.
+    print(f"Total lines read: {total_lines}")
+    print(f"Body lines found: {body_lines}")
+    print(f"X-coordinate range in file: {min_x} to {max_x}")
+           
+    bodySliceNums = []   
+    bodySliceVolCounts = []  
+    lineCollection = []   
     index = 0    
-    unScaledSliceThickness = 70  # Changes the thickness of the slice depending on the scale.   #### This value should actually be read from the params file.  
+    
+    unScaledSliceThickness = 70  
     sliceThickness = unScaledSliceThickness / scaleFactor
     HalfSliceThickness = round((sliceThickness - 1)/2)
+    
+    print(f"Slice thickness: {sliceThickness}")
+    print(f"Half slice thickness: {HalfSliceThickness}")
+    print(f"Looking for x coordinates between {sliceCoord-HalfSliceThickness} and {sliceCoord+HalfSliceThickness}")
 
-    '''Here is where we are building up lineCollection from bodyText, sorting into it the pixels that fall into the slice, sorted into sublists by body number'''        
+    bodies_in_slice = 0
+    
     for bodyEntry in bodyText:
         bodyLine = bodyEntry.split()
-        xValue = int(bodyLine[2])
+        x1 = float(bodyLine[2])
+        x2 = float(bodyLine[3])
         
-        if(xValue <= (sliceCoord+HalfSliceThickness) and xValue >= (sliceCoord-HalfSliceThickness)):
+        if (min(x1, x2) <= (sliceCoord+HalfSliceThickness) and 
+            max(x1, x2) >= (sliceCoord-HalfSliceThickness)):
+            
             bodyID = int(bodyLine[0])
+            bodies_in_slice += 1
             
             try:
                 index = bodySliceNums.index(bodyID)
                 bodySliceVolCounts[index] += 1
-
-                
             except:
                 bodySliceNums.append(bodyID)
                 lineCollection.append([])
@@ -243,135 +286,144 @@ def take_slice(inputName, sliceCoord, scaleFactor):
                 
             posi = bodySliceNums.index(bodyID)
             lineCollection[posi].append(bodyEntry)
+    
+    print(f"Bodies found in slice range: {bodies_in_slice}")
+    print(f"Unique bodies collected: {len(lineCollection)}")
             
-    index1 = 0
-    
-    ## The lines that made it into lineCollection may be recordered to the primary output file - uncomment this if so desired
-    #outStream = open(outputName, "w")
-    # for array in lineCollection:
-    #     index2 = 0
-    #     for line in lineCollection[index1]:
-    #         outStream.write(lineCollection[index1][index2])
-    #         index2 += 1
-    #     index1 += 1
-    # outStream.close()
-    
-    return lineCollection    #Do I also need to return bodySliceNums and bodySliceVolCounts?  Do we ever use these? I don't see them later in the code anywhere. If not, should I delete them?
+    return lineCollection
     
 def build_projection(lineCollection, wallRadius, recogLimit):
-    '''The slice needs to be compacted to 2 dimensions, like a TEM image.  This iterates through lineCollection and builds a projection out of it.
-     Each body, contained in each sub-list, is individually analyzed to determine every yz pixel that it contains, regardless of which 
-     x coordinate it has (as long as the x coordinate was within the slice).  All of these yz pixels are collected together into a single list. 
-     So, if that yz pixel is part of a body with an x coordinate, it will be part of that body in the final list.
-     This creates a projection of the body slice - the shadow it would cast if a light were shined through it, and the pixels were completely opaque.
-     The projection of each body is then turned into a numpy array (a binary image) for easier analysis.
-     Last, a dataframe is where each line containts statistical measurements of a body'''
+    '''Creates a projection of each body slice and analyzes its properties'''
 
-    bodyAreas = []   #Will be a list of the areas of all of the bodies.  
-    bodyImages = []  #Will be a list of the numpy arrays (binary images) for each body
-    overalldfsk = pd.DataFrame() #Will be a dataframe with statistics on all of the bodies (one body per line).     
+    bodyAreas = []   
+    bodyImages = []  
+    overalldfsk = pd.DataFrame()      
     
+    # Get the actual coordinate ranges from the data
+    min_y = float('inf')
+    max_y = float('-inf')
+    min_z = float('inf')
+    max_z = float('-inf')
+    
+    # First pass to find coordinate ranges
+    for array in lineCollection:
+        for line in array:
+            lineData = line.split()
+            y1, y2 = float(lineData[4]), float(lineData[5])
+            z1, z2 = float(lineData[6]), float(lineData[7])
+            min_y = min(min_y, y1, y2)
+            max_y = max(max_y, y1, y2)
+            min_z = min(min_z, z1, z2)
+            max_z = max(max_z, z1, z2)
+    
+    # Calculate array dimensions based on actual coordinates
+    y_size = int(max_y - min_y + 3)  # +3 for padding
+    z_size = int(max_z - min_z + 3)  # +3 for padding
+    
+    print(f"Array dimensions: {y_size} x {z_size}")
+    print(f"Coordinate ranges: y={min_y} to {max_y}, z={min_z} to {max_z}")
+
     index1 = 0
-
-    '''We build up the projection by going through each line in the lineCollection, checking if it is already in the projection, and, if not, adding it. 
-    The outer loop is for each line in lineCollection. The inner loop goes through each line in the projectionData string and compares it to the current line from the lineCollection
-    If it finds a match with identical Y and Z coordiantes it sets "found" to 1 and stops looking.  
-    If it goes through the entire projectionData without finding a match, it also stops looking.
-    Then it checks why it stopped looking, and if it wasn because it didn't find it (found = 0), at adds that line to the projectionData'''    
-   
-    ArDim = 2*(wallRadius+1) # Dimension of the array will be just slightly larger than of the simulation, to make sure that no pixels are right on the edge (needed later)
-
-    for array in lineCollection:  #This loops over each body in lineCollection
+    for array in lineCollection:  
         index2 = 0
         currentArea = 0
         currentPixels = []
         projectionData = []
-        projectionData.append(array[index2].split())  #gets ProjectionData started by adding the very first line
+        projectionData.append(array[index2].split())
         lineData = array[index2].split()
-        Pixels = [int(lineData[4]), int(lineData[6])] #list of the just the yz pixels, for making the binary image later
-        Shift = 1
-        shiftedPixels = [x + Shift for x in Pixels]   #So that no pixels are right on the edge, later
-        currentPixels.append(shiftedPixels) 
+        
+        # Adjust coordinates to array indices
+        y_coord = int(float(lineData[4]) - min_y + 1)
+        z_coord = int(float(lineData[6]) - min_z + 1)
+        
+        currentPixels.append([y_coord, z_coord])
 
         for line in array:
             lineData = array[index2].split()
             currentBody = int(lineData[0])
             index3 = 0
             found = 0
-            while index3 < len(projectionData) and found <1:
-              
-                if lineData[4] == projectionData[index3][4] and lineData[6] == projectionData[index3][6]:   #checks if both y and z match
+            while index3 < len(projectionData) and found < 1:
+                if (lineData[4] == projectionData[index3][4] and 
+                    lineData[6] == projectionData[index3][6]):
                     found += 1
                     index3 += 1
                 elif index3 < len(projectionData):    
-                     index3 += 1 
-            if found <1:
+                    index3 += 1 
+            if found < 1:
                 projectionData.append(lineData)
-                Pixels = [int(lineData[4]), int(lineData[6])]  #list of the just the yz pixels, for making the binary image later
-                shiftedPixels = [x + Shift for x in Pixels]   #So that no pixels are right on the edge, later
-                currentPixels.append(shiftedPixels)    
+                y_coord = int(float(lineData[4]) - min_y + 1)
+                z_coord = int(float(lineData[6]) - min_z + 1)
+                currentPixels.append([y_coord, z_coord])
             index2 += 1
 
         currentArea = len(projectionData)
 
-        if(currentArea >= recogLimit):    #Only keeps bodies that are above the recognition limit
+        if(currentArea >= recogLimit):    
             bodyAreas.append([currentBody, currentArea])    
-            '''Now to make the imageArray for each body - a Numpy array the size of the simulation, with "1's" at every pixel location, and "0's" 
-        everywhere there isn't a pixel'''
-            imageArray = np.zeros ((ArDim, ArDim), dtype=int)  #Initiate a large array full of 0's
+            
+            # Create array with proper dimensions
+            imageArray = np.zeros((y_size, z_size), dtype=int)
+            
             for pix in currentPixels:
-                imageArray[pix[0],pix[1]] = 1    #Put a "1" wherever the body is.  
+                imageArray[pix[0], pix[1]] = 1
+                
             bodyImages.append(imageArray)
-            all_labels = measure.label(imageArray)  #Labels connected regions of an integer array.  Since each array has only one body, there's no danger of confusion. 
-            propertylist=['label', 'bbox', 'area', 'centroid', 'convex_area','eccentricity','euler_number','filled_area','major_axis_length','minor_axis_length','perimeter']
-            # There aremore things on this property list than we currently are using, though it probably doesn't add much computation time to have them in there.
-            # Area and perimeter units are pixels, not nanometers (nm); we'll translate numbers in the dataframe to nm all at once later.'''
-            if( np.sum(all_labels) > 0):
-                props2 = measure.regionprops_table(all_labels,properties=propertylist)
+            all_labels = measure.label(imageArray)
+            
+            propertylist=['label', 'bbox', 'area', 'centroid', 'convex_area',
+                         'eccentricity', 'euler_number', 'filled_area',
+                         'major_axis_length', 'minor_axis_length', 'perimeter']
+            
+            if(np.sum(all_labels) > 0):
+                props2 = measure.regionprops_table(all_labels, properties=propertylist)
                 df_skimage = pd.DataFrame(props2)  
                 df_skimage['imgnum'] = currentBody
-                overalldfsk = pd.concat([overalldfsk, df_skimage],ignore_index=True)
+                overalldfsk = pd.concat([overalldfsk, df_skimage], ignore_index=True)
         index1 += 1
         
-    return overalldfsk     #Not returning bodyAreas or bodyImages, because those aren't being used later.  
+    return overalldfsk 
 
 def split_duplicates(overalldfsk, recogLimit):
-    '''Looks for APBs that had more than 1 big-enough region.We'll do what's called a "pivot table".
-    Any imagenum with count_area >= 2 has multiple regions in it (and they are not just tiny ones, since we filtered those out already)
-    Then we'll rename those bodies with greater than one area with new numbers - a new body number for each area.
-    This is necessary because an irregularly shaped body could look like two separate regions in a slice, and if this were a real
-    TEM image we would assume that those regions came from separate bodies and count them as such.'''
+    '''Handles APBs that had more than 1 big-enough region by creating a pivot table
+    and renaming bodies with greater than one area with new numbers.'''
+    
     if(overalldfsk.empty == False):  
-        """ Check that each body slice is big enough, and filter it out if not."""   
+        # Filter for big enough areas
         big_enough = overalldfsk['area'] >= recogLimit
-        too_small = np.invert(big_enough)
         overalldfsk_big_enough = overalldfsk[big_enough]
-        print(too_small)   #Should be empty!
-        #assert too_small.empty == True          #It should be, since we only made numpy arrays for bodies that were over the recognition limit.  But it's not?  Check up later.        
-        '''To quantify how spread-out the areas are for any bodynumber,  we'll use the statistical range (max-minus-min), which Python calls 'ptp'=peak-to-peak,
-        We'll also take the StdDev, though that gives NaN when there's only 1 region for a bodynumber.''' #Why are we quantifying how spread out the areas are? 
 
-        pvt_df=overalldfsk_big_enough.pivot_table(values='area',index='imgnum',aggfunc=["count",np.mean,np.std,np.amax,np.ptp])
-        pvt_df.columns = list(map("_".join, pvt_df.columns)) #renames the columns with simpler names
-        #print(pvt_df.columns)
-        #print (pvt_df)  #this is a pandas dataframe
-        pvt_df_split = pvt_df[pvt_df['count_area'] >= 2] #subsetting just those bodies that are split in two
+        # Create pivot table with just the essential aggregations we need
+        pvt_df = overalldfsk_big_enough.pivot_table(
+            values='area',
+            index='imgnum',
+            aggfunc=["count", "mean", "std", "max"]
+        )
+        
+        # Rename columns for clarity
+        pvt_df.columns = list(map("_".join, pvt_df.columns))
+        
+        # Find bodies that are split in two or more parts
+        pvt_df_split = pvt_df[pvt_df['count_area'] >= 2]
         
         if (len(pvt_df_split) >= 1):
-            pvt_df_single =pvt_df[pvt_df['count_area'] < 2] #subsetting just those bodies that are whole
+            # Get single bodies
+            pvt_df_single = pvt_df[pvt_df['count_area'] < 2]
             singles = pvt_df_single.index
             splits = pvt_df_split.index
 
-            #now to rename the bodies that are split in parts, giving each part a new body number
-            new_bod_nums_req = len(pvt_df_split) # how many new body numbers we need
+            # Generate new body numbers for split bodies
+            new_bod_nums_req = len(pvt_df_split)
             new_bod_nums = range(1000, 1001+new_bod_nums_req, 1)
-            overalldfsk_single = overalldfsk_big_enough[overalldfsk_big_enough["imgnum"].isin(singles)] # filters the original list by just the single bodies
-            overalldfsk_splits = overalldfsk_big_enough[overalldfsk_big_enough["imgnum"].isin(splits)] # filters the original list by just the split bodies
-            overalldfsk_splits.loc[:,"imgnum"] = new_bod_nums  #giving the splits data frame the new body numbers
-            overalldfsk_new = pd.concat([overalldfsk_single, overalldfsk_splits], ignore_index=True) #this has the data on all of the bodies, with unique body numbers
-            print (overalldfsk_new)
+            
+            # Filter and combine the data
+            overalldfsk_single = overalldfsk_big_enough[overalldfsk_big_enough["imgnum"].isin(singles)]
+            overalldfsk_splits = overalldfsk_big_enough[overalldfsk_big_enough["imgnum"].isin(splits)]
+            overalldfsk_splits.loc[:,"imgnum"] = new_bod_nums
+            overalldfsk_new = pd.concat([overalldfsk_single, overalldfsk_splits], ignore_index=True)
         else:
             overalldfsk_new = overalldfsk_big_enough
+            
     return overalldfsk_new
     
 def to_nm(overalldfsk_new, scaleFactor, initialTime):
@@ -394,45 +446,6 @@ def add_empty_line(initialTime):
     data_NA['time'] = initialTime
     print(data_NA)
     data_NA.to_csv ("sliceData/sliceMeasurements.csv", mode='a')
-       
-        
-    '''The following are all alternate output formats that were in the code as of Nov. 2024, but I commented them out because I think they are all vestigal.
-        They work, but don't give us anything that we need.'''
-        # numpy_array = finalOutput.to_numpy()
-        # np.savetxt("test_file.txt", numpy_array, fmt = "%s")
-        # finalOutputArray = finalOutput.to_numpy()
-                
-        # print("\nFinal Output Entries to be written to files:")
-        # headerLine = "Time/Date , Body_Number , Body_Area , Body_Volume , Perimeter , Circularity , AR , Wall_Radius"
-        # print(headerLine)
-        
-        # for ele in finalOutputArray:
-        #     bodyNum = int(ele[1])
-        #     bodyVolume = bodyWholeVol[bodyTotalVolumeNums.index(bodyNum)]
-        #     scaledVolume = bodyVolume * scaleFactor
-        #     scaledWallRadius = int(wallRadius) * scaleFactor
-        #     outputLine = "%s , %s , %s , %s , %s , %s , %s, %s" %(ele[0], ele[1], ele[2], scaledVolume, ele[3], ele[4], ele[5], scaledWallRadius)
-            
-        #     print(outputLine)
-            
-        #     with open('As of 20241112/Master/sliceData/sliceDataOutput.csv', mode='a+') as csvOutputFile:
-        #         sliceWriter = csv.writer(csvOutputFile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                
-        #         if(os.path.getsize('As of 20241112/Master/sliceData/sliceDataOutput.csv')==0):
-        #             sliceWriter.writerow(["Time/Data", "Body_Number", "Body_Area", "Body_Volume", "Perimeter", "Circularity", "AR", "Wall_Radius"])
-        #         sliceWriter.writerow([ele[0], ele[1], ele[2], scaledVolume, ele[3], ele[4], ele[5], scaledWallRadius])   
-            
-        #     outStream2 = open("As of 20241112/Master/sliceData/sliceDefault.txt", "a+")
-        #     if(os.path.getsize("As of 20241112/Master/sliceData/sliceDefault.txt")==0):
-        #         outStream2.write("%s\n" %(headerLine))
-        #     outStream2.write(outputLine) # Outputs each area value in the result array seperated by commas.
-            
-        # outStream2.close()
-    
-    # else:
-    #     print("\n---Dataframe is empty, no bodies caught in slice.---")   #### This needs to be fixed
-    
-
 
 def grabParams():   # This needs to be updated to use the new parameters file
     params = []
