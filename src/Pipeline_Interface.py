@@ -95,6 +95,9 @@ def option_one():
 
         # Step 2: Run CC3D simulation
         run_cc3d_script()
+        
+        # Step 3: Run SliceStats to process the generated PIFF file
+        run_SliceStats()
 
     print("--- Option One Complete ---")
 
