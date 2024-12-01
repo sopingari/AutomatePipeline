@@ -2,7 +2,7 @@
 
 # Simulation parameters
 Iterate_Over = "size" # Choose "size" to change body size each iteration, or "number" to keep size constant but change body number each iteration, "both" to change both
-Sample_Size = 1000 #Number of virutal vacuoles generated and sliced for each combination of parameters.  Default 1000
+Sample_Size = 50 #Number of virtual vacuoles generated and sliced for each combination of parameters. 
 Scale_Factor = 8 # nm per voxel size. Larger scale factors make the simulation faster but less accurate. Used in InputAdjuster and SliceStats. Default 8.  Can also use 16 for testing
 
 

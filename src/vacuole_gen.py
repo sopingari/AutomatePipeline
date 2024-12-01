@@ -619,8 +619,65 @@ def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
 
     # Save the changes back to the XML file
     tree.write(xml_file_path)
+    
+def load_parameters_from_file(file_path):
+    """
+    Reads parameters from a specified file and returns them as a dictionary.
+
+    Parameters:
+        file_path (str): Path to the file containing parameters.
+
+    Returns:
+        dict: Dictionary with parameter names as keys and their values.
+    """
+    try:
+        parameters = {}
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Remove comments and trim whitespace
+                line = line.split('#')[0].strip()
+                
+                # Skip empty lines
+                if not line:
+                    continue
+                
+                # Split on the first '=' only
+                parts = line.split('=', 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].strip().strip('"')  # Remove quotes if present
+                    parameters[key] = value
+        
+        return parameters
+    except Exception as e:
+        print(f"Error reading parameters file: {e}")
+        return None
 
 def main(args):
+    # Ask if the user wants to override parameters
+    print("Do you want to override the default parameters using 'Model_Parameters.txt'? (yes/no)")
+    user_response = input().strip().lower()
+
+    if user_response == 'yes':
+        # Load parameters from the file
+        param_file_path = './attributes/Model_Parameters.txt'
+        if os.path.exists(param_file_path):
+            params = load_parameters_from_file(param_file_path)
+            if params:
+                # Apply parameters
+                args.N = int(params.get('Sample_Size', args.N))
+                args.dx = float(params.get('Scale_Factor', args.dx))
+                args.min_radius = float(params.get('Body_radius_starting_mu', args.min_radius))
+                args.max_radius = float(params.get('Body_radius_ending_mu', args.max_radius))
+                args.wall_outer_radius = float(params.get('Wall_Radius_mu', args.wall_outer_radius))
+                args.wall_thickness = args.wall_outer_radius * 0.05  # Assuming 5% thickness
+
+                print("Parameters updated successfully.")
+            else:
+                print("Failed to load parameters. Using default values.")
+        else:
+            print(f"Parameter file '{param_file_path}' not found. Using default values.")
+
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
