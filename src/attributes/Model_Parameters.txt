@@ -1,38 +1,31 @@
 #All measurements in nm.  Default values mostly pulled from Cawthon et al. 2008 BBRC 503:651 supplemental data.
 
 # Simulation parameters
-Iterate_Over = "size" # Choose "size" to change body size each iteration, or "number" to keep size constant but change body number each iteration, "both" to change both
-Sample_Size = 50 #Number of virtual vacuoles generated and sliced for each combination of parameters. 
+Sample_Size = 1000 #Number of virutal vacuoles generated and sliced for each combination of parameters.  Default 1000
 Scale_Factor = 8 # nm per voxel size. Larger scale factors make the simulation faster but less accurate. Used in InputAdjuster and SliceStats. Default 8.  Can also use 16 for testing
-
+pvals = 2  # Sphericity paramter (p-value).  Setting this to 2 will generate spheres.  
 
 #Vacuole parameters (These may vary between experiments, and can be found from the experimental data using simpler methods already published)
 #This is used to generate the inner radius of the vacuole; the outer radius will be 5% greater
 Wall_Radius_mu = 6.8   # log nm
 Wall_Radius_sigma = 0.34  # log nm
 
-#Body size iteration parameters (if iterating over body size)
-Body_radius_starting_mu = 4.7 # (log nm) Will iterate up from this in increments of 0.1 until ending mu reached.  Choose 4.7 for normal-sized bodies, 4.2 to explore a wider range
-Body_radius_ending_mu = 5.2 # (log nm) Will iterate up to and including this value
-Body_radius_starting_sigma = 0.25 # (log nm) Will iterate up from this in increments of 0.05  Start with 0.25 for normal-sized bodies, 0.2 to explore a wider range  
+#Body size iteration parameters (if iterating over body size. To iterate exclusively over body number, set "starting" and "ending" to the same value, e.g 5.0 for mu and 0.3 for sigma)
+Body_radius_starting_mu = 4.7 # (log nm) Will iterate up from this until ending mu reached.  Choose 4.7 for normal-sized bodies, 4.2 to explore a wider range
+Body_radius_ending_mu = 5.2 # (log nm) Will iterate up to and including this value.  Choose 5.2 for normal-sized bodies
+Body_radius_mu_step = 0.1 # (log nm) The size of the step to take while iterating over mu.  0.1 seems to give a reasonable resolution  
+Body_radius_starting_sigma = 0.25 # (log nm) Will iterate up from this until ending sigma reached. Start with 0.25 for normal-sized bodies, 0.2 to explore a wider range  
 Body_radius_ending_sigma = 0.4 # (log nm) Will iterate up to and including this value.  Choose 0.4 for normal-sized bodies, 0.45 to explore a wider range
+Body_radius_sigma_step = 0.05 # (log nm) The size of the step to take while iterating over sigma.  0.05 seems to give a reasonable resolution  
 
-# Sphericity paramter (p-value).  Setting this to 2 will generate spheres.  
-pvals = 2
-
-#Fixed body number - to use when initially iterating over body size
-Body_number = 40
-
-#Fixed body parameters - should be determined based on the results from iterating over body size
-Body_radius_mu = 5.0 # log nm
-Body_radius_sigma = 0.35 # log nm
-
-#Body number iteration parameters - to use for iterating over body number (log normal distribution), once body size has been determined
+#Body number iteration parameters (if iterating over body number. To iterate exclusively over body size, set "starting" and "ending" to the same value, e.g 3.7 for mu and 0.3 for sigma)
 # Start with some reasonable guesses based on the number of observed crossections. 
-Body_number_starting_mu = 3.0 # (log count) Will iterate up from this in increments of .05 Start with a reasonable guess based on the number of observed crossections, then take the natural log of that value (e.g ln(20) = 3.0))
+Body_number_starting_mu = 3.0 # (log count) Will iterate up from this. Start with a reasonable guess based on the number of observed crossections, then take the natural log of that value (e.g ln(20) = 3.0))
 Body_number_ending_mu = 3.7 # (log count) Will iterate up to and including this value.  ln(40) = 3.69
+Body_number_mu_step = 0.1 # (log count) The size of the step to take while iterating over mu.  Hasn't been tested, but 0.1 seems like a reasonable guess
 Body_number_starting_sigma = 0 # (log count) Will iterate up from this in increments of 0.1 
 Body_number_ending_sigma = 0.6 # (log count) Will iterate up to (and including) this value
+Body_number_sigma_step = 0.1 # (log count) The size of the step to take while iterating over sigma.  Hasn't been tested, but 0.1 seems like a reasonable guess
 
 #TEM parameters - used only in SliceStats
 unScaledSliceThickness = 70  # thickness of ultrathin section in nm; used in SliceStats
