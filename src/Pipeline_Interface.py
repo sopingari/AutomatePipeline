@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import stat
+import numpy as np
 
 ############################################################################################################
 #   Autophagic Vacuole Simulation (AVS) Project
@@ -66,40 +67,159 @@ def main():
         else:
             print("--- Invalid Input, please select from options 0 to 6 ---")
 
-def option_one():
-    print("--- Option One Selected ---")
-    print("Enter the number of runs (N) you want to perform (1 -> N):")
+def load_model_parameters(file_path="Model_Parameters.txt"):
+    params = {}
     try:
-        num_runs = int(input())
-        if num_runs < 1:
-            raise ValueError
-    except ValueError:
-        print("Invalid input. Please enter a positive integer.")
-        return
+        with open(file_path, "r") as f:
+            for line in f:
+                line = line.split("#")[0].strip()
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    params[key.strip()] = value.strip()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Error: Parameters file '{file_path}' not found.")
+    except Exception as e:
+        raise ValueError(f"Error reading parameters file: {e}")
+    
+    return params
+    
+def vacuolegenmain(mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma, fixed_N=None):
+    # Generate number of spheroids
+    if fixed_N is not None:
+        # Use fixed number of spheroids when iterating over Body Size
+        N_spheroids = fixed_N
+    else:
+        # Generate number of spheroids dynamically when iterating over Body Number
+        N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
 
-    # Prompt for N (number of spheroids) required by vacuole_gen.py
-    print("Enter the number of spheroids (N) to generate:")
+    print(f"Running vacuole_gen with N={N_spheroids}, mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
+
+    # Build the command to execute vacuole_gen.py
+    command = [
+        sys.executable,
+        "vacuole_gen.py",
+        "--N", str(N_spheroids),               # Number of spheroids
+        "--mu", str(mu_body_size),            # Mean for body size
+        "--sigma", str(sigma_body_size),       # Sigma for body size
+        "--wall_radius_mu", str(wall_radius_mu),  # Wall radius mean
+        "--wall_radius_sigma", str(wall_radius_sigma)  # Wall radius sigma        
+    ]
+
+    # Execute the command
+    src_folder = os.path.dirname(os.path.abspath(__file__))
     try:
-        N_spheroids = int(input())
-        if N_spheroids < 1:
-            raise ValueError
-    except ValueError:
-        print("Invalid input. Please enter a positive integer for N.")
-        return
+        subprocess.run(command, check=True, cwd=src_folder)
+        print(f"vacuole_gen.py executed successfully with N={N_spheroids}, mu={mu_body_size}, sigma={sigma_body_size}")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running vacuole_gen.py: {e}")
 
-    for i in range(1, num_runs+1):
-        print(f"\n--- Running pipeline iteration {i} ---")
-
-        # Step 1: Run vacuole_gen to generate the initial conditions
-        vacuole_gen_main(N_spheroids)
-
-        # Step 2: Run CC3D simulation
+'''
+def run_pipeline(sample_size, mu, sigma):
+    """
+    Runs the pipeline sample_size times for the given mu and sigma.
+    """
+    for run_idx in range(1, sample_size + 1):
+        print(f"\n--- Pipeline execution {run_idx}/{sample_size} for mu={mu}, sigma={sigma} ---")
+        
+        # Step 1: Run vacuole_gen with the current mu and sigma
+        vacuolegenmain(mu, sigma)
+        
+        # Step 2: Run the CC3D simulation
         run_cc3d_script()
         
-        # Step 3: Run SliceStats to process the generated PIFF file
+        # Step 3: Run SliceStats (if applicable)
         run_SliceStats()
+        
+    print(f"--- Completed pipeline for mu={mu}, sigma={sigma} ---")
+'''
 
-    print("--- Option One Complete ---")
+def option_one():
+    """
+    Main pipeline logic with the choice to iterate over either Body Number or Body Size.
+    """
+    params = load_model_parameters("./attributes/Model_Parameters.txt")
+    if not params:
+        raise ValueError("Failed to load parameters from Model_Parameters.txt.")
+
+    sample_size = int(params["Sample_Size"])
+    wall_radius_mu = float(params["Wall_Radius_mu"])
+    wall_radius_sigma = float(params["Wall_Radius_sigma"])    
+
+    print("What do you want to iterate over?")
+    print("[1] Body Number")
+    print("[2] Body Size")
+    choice = input("Enter your choice (1/2): ").strip()
+
+    if choice == "1":
+        # Iterate over Body Number
+        mu_start = float(params["Body_number_starting_mu"])
+        mu_end = float(params["Body_number_ending_mu"])
+        mu_step = float(params["Body_number_mu_step"])
+        sigma_start = float(params["Body_number_starting_sigma"])
+        sigma_end = float(params["Body_number_ending_sigma"])
+        sigma_step = float(params["Body_number_sigma_step"])
+
+        # Fixed body size parameters
+        mu_body_size = float(params["Body_radius_starting_mu"])
+        sigma_body_size = float(params["Body_radius_starting_sigma"])
+
+        mu = mu_start
+        while mu <= mu_end:
+            sigma = sigma_start
+            while sigma <= sigma_end:
+                print(f"Running pipeline with Body Number: mu={mu}, sigma={sigma}")
+                for run_idx in range(sample_size):
+                    print(f"Sample {run_idx + 1}/{sample_size} for mu={mu}, sigma={sigma}")
+                    vacuolegenmain(
+                        mu_body_number=mu,
+                        sigma_body_number=sigma,
+                        mu_body_size=mu_body_size,
+                        sigma_body_size=sigma_body_size,
+                        wall_radius_mu=wall_radius_mu,
+                        wall_radius_sigma=wall_radius_sigma)
+                    run_cc3d_script()
+                    #run_SliceStats()
+                sigma += sigma_step
+            mu += mu_step
+
+    elif choice == "2":
+        # Iterate over Body Size
+        mu_start = float(params["Body_radius_starting_mu"])
+        mu_end = float(params["Body_radius_ending_mu"])
+        mu_step = float(params["Body_radius_mu_step"])
+        sigma_start = float(params["Body_radius_starting_sigma"])
+        sigma_end = float(params["Body_radius_ending_sigma"])
+        sigma_step = float(params["Body_radius_sigma_step"])
+
+        # Fixed body number parameters
+        mu_body_number = float(params["Body_number_starting_mu"])
+        sigma_body_number = float(params["Body_number_starting_sigma"])
+        fixed_N = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
+
+        mu = mu_start
+        while mu <= mu_end:
+            sigma = sigma_start
+            while sigma <= sigma_end:
+                print(f"Running pipeline with Body Size: mu={mu}, sigma={sigma}")
+                for run_idx in range(sample_size):
+                    print(f"Sample {run_idx + 1}/{sample_size} for mu={mu}, sigma={sigma}")
+                    vacuolegenmain(
+                        mu_body_number=mu_body_number,
+                        sigma_body_number=sigma_body_number,
+                        mu_body_size=mu,
+                        sigma_body_size=sigma,
+                        wall_radius_mu=wall_radius_mu,
+                        wall_radius_sigma=wall_radius_sigma,
+                        fixed_N=fixed_N)
+                    run_cc3d_script()
+                    #run_SliceStats()
+                sigma += sigma_step
+            mu += mu_step
+
+    else:
+        print("Invalid choice. Please restart and select either 1 or 2.")
+
+    print("--- Pipeline execution complete ---")
 
 def option_two():
     print("--- Option Two Selected ---")
@@ -113,7 +233,7 @@ def option_two():
         print("Invalid input. Please enter a positive integer for N.")
         return
 
-    vacuole_gen_main(N_spheroids)
+    vacuolegenmain()
     print("--- Option Two Complete ---")
 
 def option_three():

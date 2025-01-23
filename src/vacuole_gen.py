@@ -654,6 +654,7 @@ def load_parameters_from_file(file_path):
         return None
 
 def main(args):
+    '''
     # Ask if the user wants to override parameters
     print("Do you want to override the default parameters using 'Model_Parameters.txt'? (yes/no)")
     user_response = input().strip().lower()
@@ -666,18 +667,18 @@ def main(args):
             if params:
                 # Apply parameters
                 args.N = int(params.get('Sample_Size', args.N))
-                args.dx = float(params.get('Scale_Factor', args.dx))
-                args.min_radius = float(params.get('Body_radius_starting_mu', args.min_radius))
-                args.max_radius = float(params.get('Body_radius_ending_mu', args.max_radius))
-                args.wall_outer_radius = float(params.get('Wall_Radius_mu', args.wall_outer_radius))
-                args.wall_thickness = args.wall_outer_radius * 0.05  # Assuming 5% thickness
+                #args.dx = float(params.get('Scale_Factor', args.dx))
+                #args.min_radius = float(params.get('Body_radius_starting_mu', args.min_radius))
+                #args.max_radius = float(params.get('Body_radius_ending_mu', args.max_radius))
+                #args.wall_outer_radius = float(params.get('Wall_Radius_mu', args.wall_outer_radius))
+                #args.wall_thickness = args.wall_outer_radius * 0.05  # Assuming 5% thickness
 
                 print("Parameters updated successfully.")
             else:
                 print("Failed to load parameters. Using default values.")
         else:
             print(f"Parameter file '{param_file_path}' not found. Using default values.")
-
+    '''
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -715,7 +716,7 @@ def main(args):
     df, pos_array, r_and_pos_array, dirmat_safe = genBalls3(
         bodies=N_SPHEROIDS,
         wall_Radius_Mu=np.log(WALL_OUTER_RADIUS),
-        wall_Radius_Sigma=0.1,  # Adjust as needed
+        wall_Radius_Sigma=0.34,  # Adjust as needed
         mu=np.log((MIN_RADIUS + MAX_RADIUS) / 2),
         sigma=0.1,  # Adjust as needed
         iterations=args.iterations,
@@ -934,6 +935,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate PIFF file with N randomly clustered spheroids inside a surrounding hollow Wall.')
     parser.add_argument('--N', type=int, required=True, help='Number of internal spheroids to generate')
+    parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
+    parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
+    parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
+    parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
+       
     parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
     parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
@@ -942,7 +948,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
-    parser.add_argument('--sigma', type=float, default=0.2, help='Standard deviation for log-normal distribution of spheroid radii')
+    #parser.add_argument('--sigma', type=float, default=0.2, help='Standard deviation for log-normal distribution of spheroid radii')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
     parser.add_argument('--optimmaxiter', type=int, default=100, help='Maximum iterations for optimization')
     parser.add_argument('--csv_output', type=str, help='Output CSV file name')
