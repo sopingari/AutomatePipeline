@@ -937,8 +937,9 @@ if __name__ == "__main__":
     parser.add_argument('--N', type=int, required=True, help='Number of internal spheroids to generate')
     parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
     parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
-    parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
-    parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
+    #change this when the wall_radius_mu and wall_radius_sigma is fixed
+    parser.add_argument("--wall_radius_mu", type=float, required=False, help="Log-normal mean for wall radius")
+    parser.add_argument("--wall_radius_sigma", type=float, required=False, help="Log-normal sigma for wall radius")    
        
     parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
     parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
