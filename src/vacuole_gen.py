@@ -350,7 +350,7 @@ def log_statistics(args, df):
         "min_radius": args.min_radius,
         "max_radius": args.max_radius,
         "vacuole_outer_radius": vacuole['rOuter'], # aross15 making it more clear
-        "vacuole_inner_radius": vacuole['rInner']    #sbackues
+        "vacuole_inner_radius": vacuole['rInner'],    #sbackues
         "dx": args.dx,
         "optimmaxiter": args.optimmaxiter
     }
