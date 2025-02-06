@@ -14,7 +14,7 @@ from skimage import measure
 #   Eastern Michigan University
 #   Backues Lab  
 #   Author: Payton Dunning and Steven Backues
-#   Last Date Modified: July 20th, 2021
+#   Last Date Modified: Dec. 18th 2024
 #
 #   A script for analyzing the contents of an Autophagic Vacuole Simulation (AVS) project formatted 
 #   Compucell 3D (CC3D) simulation. The script takes in a PIF file (.piff), that must contain "Body" and
@@ -35,27 +35,26 @@ from skimage import measure
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ############################################################################################################
-''' Todo Nov. 2024:
-1. update paramsfile grabs to the new parameters file, and include things including vacMin (line 116), slice thickness (line 216), and recognition limit (line 267)
-2. Get values of mu and sigma for body size and number (and vacuole size? from Vacuole_gen csv and add those to the output csv (line 399))
-3. Fix error handling for vacuole slice limit (line 135)
-4. Verify that the mass runs are being handled appropriately
+''' Todo Dec. 2024:
+1. Fix lines 68-82: right now they are setting the slice size based on the body cluster, not the wall. Make them read the vacuole size from the combined csv made by vacuole_gen
+2. Get values of mu and sigma for body size and number from Vacuole_gen csv and add those to the output csv (line 399))
+3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true
+4. Fix error handling for vacuole slice limit (line 135)
 5. Add option to take serial slices?'''
 
 #paramsFile is used to keep track of several variables used by multiple scipts.
-print('Please choose the old parameters file (Old_Model_Parameters.txt)')   #### NEEDS TO BE UPDATED!
-paramsFile = askopenfilename() 
+paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
+#paramsFile = 'src/attributes/Model_Parameters.txt'   #For Windows
 
 #MassRunCheck is a boolean variable. It is false when SliceStats is run alone, and true when run as part of the AVS cycle.
 ##### Note that mass runs have not been tested recently, and will probably need to be updated to the new Vacuolegen (2024)
 def main(fileSelectOpt, MassRunCheck, inputPiff):
     initialTime = time.asctime(time.localtime(time.time()))
-    
-    print("Now running SliceStats.py")
-    inputName = "src\output.piff"
-    
+
     if(MassRunCheck == True):
-        inputName = inputPiff
+        Tk().withdraw()
+        filename = askopenfilename()    #This is only temporary until we figure out how to have it automatically grab from the current run folder  
+        inputName = filename 
     else:
         if(fileSelectOpt):
             print("Please Select piff file...")
@@ -85,14 +84,19 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     wallRadius = int((max_x - min_x) / 2)
     
     print("Grabbing AVS Model Parameters...\n")
-    modelParams = grabParams()
-    scaleFactor = modelParams[0]  # Keep scale factor from params file
+    modelParams = load_parameters_from_file(paramsFile)
+    print(modelParams)
+    scaleFactor = int(modelParams['Scale_Factor'])  # Keep scale factor from params file
+    unScaledSliceThickness = int(modelParams['unScaledSliceThickness'])
+    unScaledVacMin = int(modelParams['unScaledVacMin'])
+    unScaledminBodyRadius = int(modelParams['unScaledminBodyRadius'])
+
     
     print("Current Model Parameters:\n")
     print("\tScale_Factor: %d\n" %(scaleFactor))
-    print("\tWall_Radius: %d\n" %(wallRadius))
-    print("\tWall_Diameter: %d\n" %(wallRadius*2))
-    print("\tWall_X_Coordinate: %d\n" %(centerX))
+    print("\t:unScaledSliceThickness %d\n" %(unScaledSliceThickness))
+    print("\t:unScaledVacMin %d\n" %(unScaledVacMin))
+    print("\t:unScaledminBodyRadius %d\n" %(unScaledminBodyRadius))
     
     if(MassRunCheck == False):
         print(">>Would you like to use these parameters?[y/n]")
@@ -110,8 +114,6 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             
             print("\n>>Enter the given wall's central x-coordinate:", end='')
             centerX = int(input()) 
-    
-    wallD = (wallRadius*2)
     
     unScaledVacMin = 300.0    
     vacMin = (unScaledVacMin / scaleFactor)
@@ -169,13 +171,12 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     print(f"Taking slice at X coordinate: {sliceCoord}")
     
     # Adjust recognition limit
-    unScaledminBodyRadius = 25.0  # Reduced from 50.0 to better match file scale
     minBodyRadius = (unScaledminBodyRadius / scaleFactor)
     recogLimit = math.pi * (minBodyRadius**2)
     
     print(f"Recognition limit: {recogLimit}")
         
-    lineCollection = take_slice(inputName, sliceCoord, scaleFactor)
+    lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor)
     
     if len(lineCollection) == 0:
         print("No bodies found in slice")
@@ -191,7 +192,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         overalldfsk_new = split_duplicates(overalldfsk, recogLimit)
         to_nm(overalldfsk_new, scaleFactor, initialTime)
 
-def take_slice(inputName, sliceCoord, scaleFactor): 
+def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor): 
     '''Sorts the pixels within the PIFF file into wallText and bodyText. The lines within bodyText are parsed through, 
     and those pixels that fall within the slice are sorted into lineCollection.'''  
 
@@ -255,7 +256,7 @@ def take_slice(inputName, sliceCoord, scaleFactor):
     lineCollection = []   
     index = 0    
     
-    unScaledSliceThickness = 70  
+ 
     sliceThickness = unScaledSliceThickness / scaleFactor
     HalfSliceThickness = round((sliceThickness - 1)/2)
     
@@ -447,16 +448,38 @@ def add_empty_line(initialTime):
     print(data_NA)
     data_NA.to_csv ("sliceData/sliceMeasurements.csv", mode='a')
 
-def grabParams():   # This needs to be updated to use the new parameters file
-    params = []
-    paramsInStream = open(paramsFile, "r")
-    inStreamLines = paramsInStream.readlines()
-    paramsInStream.close()
-    
-    for line in inStreamLines:
-        splitLine = line.split()
-        params.append(int(splitLine[1].strip()))
-        
-    return params
+def load_parameters_from_file(file_path):
+    """
+    Reads parameters from a specified file and returns them as a dictionary.
 
-main(fileSelectOpt = True, MassRunCheck = False, inputPiff = None)
+    Parameters:
+        file_path (str): Path to the file containing parameters.
+
+    Returns:
+        dict: Dictionary with parameter names as keys and their values.
+    """
+    try:
+        parameters = {}
+        with open(file_path, 'r') as file:
+            for line in file:
+                # Remove comments and trim whitespace
+                line = line.split('#')[0].strip()
+                
+                # Skip empty lines
+                if not line:
+                    continue
+                
+                # Split on the first '=' only
+                parts = line.split('=', 1)
+                if len(parts) == 2:
+                    key = parts[0].strip()
+                    value = parts[1].strip().strip('"')  # Remove quotes if present
+                    parameters[key] = value
+        
+        return parameters
+    except Exception as e:
+        print(f"Error reading parameters file: {e}")
+        return None
+
+
+main(fileSelectOpt = True, MassRunCheck = True, inputPiff = "src/output.piff")
