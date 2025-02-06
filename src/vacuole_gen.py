@@ -314,7 +314,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     # from R:    cellSize=2*vacRad ; output_spheregen <- rbind(cellSize/2, output_spheregen)
     vac_pos_array = np.ones_like(pos_array[0,:])*vacRadOuter #  x, y, and z if needed.
 
-    vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner since APBs have outer radius listed as "r"   ### Check on this
+    vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner to make sure that it all fits in the positive octant
     r_and_pos_array_w_vac = np.vstack((vac_r_and_pos,r_and_pos_array))
     pos_array = np.delete(r_and_pos_array_w_vac,0,axis=1) # copy everything except 1st col, which is r.
     d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner} #sbackues updated 'r' to 'rOuter'
