@@ -314,10 +314,10 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     # from R:    cellSize=2*vacRad ; output_spheregen <- rbind(cellSize/2, output_spheregen)
     vac_pos_array = np.ones_like(pos_array[0,:])*vacRadOuter #  x, y, and z if needed.
 
-    vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner since APBs have outer radius listed as "r"
+    vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner to make sure that it all fits in the positive octant
     r_and_pos_array_w_vac = np.vstack((vac_r_and_pos,r_and_pos_array))
     pos_array = np.delete(r_and_pos_array_w_vac,0,axis=1) # copy everything except 1st col, which is r.
-    d = {'bodynum': -100, 'bodyType':'Vacuole', 'r': vacRadOuter,'p':vacp, 'rInner':vacRadInner} #aross15 adding rInner column, 0 for all APBs; "r" column is actually rOuter.
+    d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner} #sbackues updated 'r' to 'rOuter'
     df_just_vac = pd.DataFrame(data=[d])
     #MV Pandas Concatenation of Vac Parameter and Dataframe
     df = pd.concat([df_just_vac,df],ignore_index=True)
@@ -349,7 +349,8 @@ def log_statistics(args, df):
         "num_spheroids_placed": len(spheroids),
         "min_radius": args.min_radius,
         "max_radius": args.max_radius,
-        "vacuole_outer_radius": vacuole['r'], # aross15 making it more clear
+        "vacuole_outer_radius": vacuole['rOuter'], # aross15 making it more clear
+        "vacuole_inner_radius": vacuole['rInner'],    #sbackues
         "dx": args.dx,
         "optimmaxiter": args.optimmaxiter
     }
@@ -366,12 +367,12 @@ def log_statistics(args, df):
     
     '''
     # Vacuole volume
-    vacuole_volume = (4/3) * np.pi * vacuole['r'] ** 3
+    vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
     stats["vacuole_volume"] = float(vacuole_volume)
     '''
 
     # Vacuole volume
-    vacuole_volume = (4/3) * np.pi * vacuole['r'] ** 3
+    vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
     stats["vacuole_volume"] = float(vacuole_volume.item()) if isinstance(vacuole_volume, np.ndarray) else float(vacuole_volume)
 
     # Log the statistics
@@ -458,7 +459,7 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     # Generate boxes for the vacuole (Wall)
     wall_cell_id = cell_id  # Assign a unique CellID for the wall
     x0, y0, z0 = vacuole['x'], vacuole['y'], vacuole['z']
-    R_outer = vacuole['r']
+    R_outer = vacuole['rOuter']
     R_inner = vacuole['rInner'] # aross15
 
     # Define bounding box for the wall
@@ -789,7 +790,7 @@ def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius):
     local_neighbors = [n for n in neighbors if n['center_distance'] <= local_radius]
     local_density = len(local_neighbors) / ((4/3) * np.pi * local_radius**3)
     
-    distance_to_wall = abs(distance_from_center - vacuole['r'])
+    distance_to_wall = abs(distance_from_center - vacuole['rInner'])
     
     return {
         'volume': volume,
@@ -813,9 +814,9 @@ def write_combined_csv(run_folder, run_id, args, df):
     spheroids = df[df['bodyType'] == 'APB']
     
     # Calculate global statistics
-    # as if it was a solid ball, rather than just the volume of the wall itself without the hollow interior. #aross15
+    # Vacuole volume based on inner radius; the hollow volume that the spheres can be in is what matters #sbackues
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
-    vacuole_volume = (4/3) * np.pi * (vacuole['r'].item() if isinstance(vacuole['r'], np.ndarray) else vacuole['r'])**3
+    vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
     success_rate = len(spheroids) / args.N * 100
     
     # Create output file path
@@ -837,7 +838,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Success Rate (%)', success_rate),
                 ('Minimum Radius', args.min_radius),
                 ('Maximum Radius', args.max_radius),
-                ('Vacuole Outer Radius', float(vacuole['r'].item() if isinstance(vacuole['r'], np.ndarray) else vacuole['r'])), #aross15
+                ('Vacuole Inner Radius', float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])), #sbackues
                 ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
                 ('Maximum Tries', args.max_tries),
@@ -891,7 +892,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 vacuole['x'],
                 vacuole['y'],
                 vacuole['z'],
-                vacuole['r'],
+                vacuole['rInner'],
                 vacuole_volume,
                 0.0,  # distance_from_center
                 '',  # nearest_neighbor_center_distance
