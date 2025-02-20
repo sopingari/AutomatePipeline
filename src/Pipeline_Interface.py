@@ -63,6 +63,10 @@ def run_pipeline():
         raise ValueError("Failed to load parameters from Model_Parameters.txt.")
 
     sample_size = int(params["Sample_Size"])
+    
+    # Parameters for Wall mu and sigma 
+    wall_radius_mu = float(params["Wall_Radius_mu"])
+    wall_radius_sigma = float(params["Wall_Radius_sigma"])
 
     # Parameters for Body Number iteration
     mu_body_number_start = float(params["Body_number_starting_mu"])
@@ -99,7 +103,9 @@ def run_pipeline():
                             mu_body_number=mu_body_number,
                             sigma_body_number=sigma_body_number,
                             mu_body_size=mu_body_size,
-                            sigma_body_size=sigma_body_size
+                            sigma_body_size=sigma_body_size,
+                            wall_radius_mu=wall_radius_mu,
+                            wall_radius_sigma=wall_radius_sigma
                         )
 
                         # Run CompuCell3D simulation
@@ -113,7 +119,7 @@ def run_pipeline():
     print("--- Pipeline execution complete ---")
 
 
-def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size):
+def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -124,7 +130,9 @@ def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size,
         "vacuole_gen.py",
         "--N", str(N_spheroids),
         "--mu", str(mu_body_size),
-        "--sigma", str(sigma_body_size)
+        "--sigma", str(sigma_body_size),
+        "--wall_radius_mu", str(wall_radius_mu),
+        "--wall_radius_sigma", str(wall_radius_sigma)
     ]
 
     try:

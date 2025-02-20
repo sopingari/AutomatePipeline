@@ -396,7 +396,7 @@ def setup_logging(run_folder, seed):
     return stats_file
 
 #genballs
-def generate_piff_file(df, dx=1.0, filename='output.piff'):
+def generate_piff_file(df, dx=8.0, filename='output.piff'):
     """
     Generates a PIFF file with spheroids and surrounding wall.
 
@@ -680,6 +680,7 @@ def main(args):
         else:
             print(f"Parameter file '{param_file_path}' not found. Using default values.")
     '''
+
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -704,10 +705,14 @@ def main(args):
 
     # Extract parameters from arguments
     N_SPHEROIDS = args.N
+    BODY_MU = args.mu
+    BODY_SIGMA = args.sigma
     MIN_RADIUS = args.min_radius
     MAX_RADIUS = args.max_radius
-    args.wall_outer_radius = 60.0
-    WALL_OUTER_RADIUS = args.wall_outer_radius
+    #args.wall_outer_radius = 60.0
+    #WALL_OUTER_RADIUS = args.wall_outer_radius
+    WALL_RADIUS_MU = args.wall_radius_mu
+    WALL_RADIUS_SIGMA = args.wall_radius_sigma
     WALL_THICKNESS = args.wall_thickness
     DX = args.dx
     MAX_TRIES = args.max_tries
@@ -716,10 +721,12 @@ def main(args):
     # Generate spheroids using genBalls3
     df, pos_array, r_and_pos_array, dirmat_safe = genBalls3(
         bodies=N_SPHEROIDS,
-        wall_Radius_Mu=np.log(WALL_OUTER_RADIUS),
-        wall_Radius_Sigma=0.34,  # Adjust as needed
-        mu=np.log((MIN_RADIUS + MAX_RADIUS) / 2),
-        sigma=0.1,  # Adjust as needed
+        wall_Radius_Mu=WALL_RADIUS_MU,
+        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  # Adjust as needed
+        #mu=np.log((MIN_RADIUS + MAX_RADIUS) / 2),
+        mu = BODY_MU,
+        #sigma=0.1,  # Adjust as needed
+        sigma = BODY_SIGMA,
         iterations=args.iterations,
         ndim=3,
         rng=rng,
@@ -838,6 +845,8 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Success Rate (%)', success_rate),
                 ('Minimum Radius', args.min_radius),
                 ('Maximum Radius', args.max_radius),
+                ('Body Radius Mu', args.mu),
+                ('Body Radius Sigma', args.sigma),
                 ('Vacuole Inner Radius', float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])), #sbackues
                 ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
@@ -847,8 +856,8 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Total Volume', float(total_spheroid_volume + vacuole_volume)),
                 ('Distribution Mean (mu)', np.log((args.min_radius + args.max_radius) / 2)),
                 ('Distribution Sigma', args.sigma),
-                ('Wall Radius Mean (mu)', np.log(args.wall_outer_radius)),
-                ('Wall Radius Sigma', 0.1),
+                ('Wall Radius Mean (mu)', args.wall_radius_mu),
+                ('Wall Radius Sigma', args.wall_radius_sigma),
                 ('Iterations', args.iterations),
                 ('Optimization Max Iterations', args.optimmaxiter)
             ]
@@ -939,14 +948,14 @@ if __name__ == "__main__":
     parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
     parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
     #change this when the wall_radius_mu and wall_radius_sigma is fixed
-    parser.add_argument("--wall_radius_mu", type=float, required=False, help="Log-normal mean for wall radius")
-    parser.add_argument("--wall_radius_sigma", type=float, required=False, help="Log-normal sigma for wall radius")    
+    parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
+    parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
        
     parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
     parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
     parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall (default: 2)')
-    parser.add_argument('--dx', type=float, default=1.0, help='Resolution for grid boxes (default: 1.0)')
+    parser.add_argument('--dx', type=float, default=8.0, help='Resolution for grid boxes (default: 1.0)')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
