@@ -742,7 +742,7 @@ def main(args):
     log_statistics(args, df)
 
     # Generate PIFF file
-    generate_piff_file(df, dx=DX, filename=filename)
+    generate_piff_file(df, dx=8.0, filename=filename)
 
     # Write the combined CSV directly to the run folder
     csv_filename = f'{run_id}_combined.csv'
