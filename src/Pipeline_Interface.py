@@ -12,10 +12,11 @@ def main():
     while True:
         print(">> Please select from the following options by entering the corresponding number:")
         print("\t[1]: Run pipeline with nested iterations over Body Number and Body Size")
-        print("\t[2]: Run CC3D alone in headless mode")
-        print("\t[3]: Run Slice Stats alone")
-        print("\t[4]: Run AVS Stats alone")
-        print("\t[5]: Read the ReadMe file")
+        print("\t[2]: Run vacuole_gen alone")
+        print("\t[3]: Run CC3D alone in headless mode")
+        print("\t[4]: Run Slice Stats alone")
+        print("\t[5]: Run AVS Stats alone")
+        print("\t[9]: Read the ReadMe file")
         print("\t[0]: Exit AVS")
 
         scriptChoice = input()
@@ -24,17 +25,19 @@ def main():
             print("--- Now exiting AVS ---")
             sys.exit()
         elif scriptChoice == "1":
-            run_pipeline()
+            run_pipeline(cc3d = True)
         elif scriptChoice == "2":
-            option_three()
+            option_two()
         elif scriptChoice == "3":
-            option_four()
+            option_three()
         elif scriptChoice == "4":
-            option_five()
+            option_four()
         elif scriptChoice == "5":
-            option_six()
+            option_five()
+        elif scriptChoice == "9":
+            option_nine()
         else:
-            print("--- Invalid Input, please select from options 0 to 5 ---")
+            print("--- Invalid Input, please select one of the above options ---")
 
 
 def load_model_parameters(file_path="Model_Parameters.txt"):
@@ -54,7 +57,7 @@ def load_model_parameters(file_path="Model_Parameters.txt"):
     return params
 
 
-def run_pipeline():
+def run_pipeline(cc3d = True):
     """
     Run pipeline iterating over Body Number and Body Size using nested loops.
     """
@@ -108,8 +111,9 @@ def run_pipeline():
                             wall_radius_sigma=wall_radius_sigma
                         )
 
-                        # Run CompuCell3D simulation
-                        run_cc3d_script()
+                        # Run CompuCell3D simulation (only if called for)
+                        if cc3d == True:
+                            run_cc3d_script()
 
                     sigma_body_size += sigma_body_size_step
                 mu_body_size += mu_body_size_step
@@ -141,7 +145,12 @@ def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size,
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running vacuole_gen.py: {e}")
 
-
+def run_vacuole_gen():
+    """
+    Run vacuole_gen, iterating over Body Number and Body Size using nested loops to create PIFF files, but not squashing them with CC3D or sliceing with slicestats.
+    """    
+    run_pipeline(cc3d = False)
+    
 def run_cc3d_script():
     print("Running CC3D simulation using runScript.sh...")
     cc3d_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CompuCell3D')
@@ -165,6 +174,11 @@ def run_cc3d_script():
         print(f"An error occurred while running runScript.sh: {e}")
 
 
+def option_two():
+    print("--- Option Two Selected ---")
+    run_vacuole_gen()
+    print("--- Option Two Complete ---")
+    
 def option_three():
     print("--- Option Three Selected ---")
     run_cc3d_script()
@@ -183,10 +197,10 @@ def option_five():
     print("--- Option Five Complete ---")
 
 
-def option_six():
-    print("--- Option Six Selected ---")
+def option_nine():
+    print("--- Option Nine Selected ---")
     read_readme()
-    print("--- Option Six Complete ---")
+    print("--- Option Nine Complete ---")
 
 
 def run_SliceStats():
