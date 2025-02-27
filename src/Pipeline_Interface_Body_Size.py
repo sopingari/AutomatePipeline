@@ -95,11 +95,10 @@ def run_pipeline(cc3d = True):
             while mu_body_size <= mu_body_size_end:
                 sigma_body_size = sigma_body_size_start
                 while sigma_body_size <= sigma_body_size_end:
-                    N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
-                    print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}")
-                    print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
-
                     for run_idx in range(sample_size):
+                        N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
+                        print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}")
+                        print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
                         print(f"Sample {run_idx + 1}/{sample_size}")
                         vacuolegenmain(
                             N_spheroids=N_spheroids,
