@@ -19,6 +19,8 @@ import pandas as pd
 from scipy.stats import ortho_group
 from scipy.optimize import minimize
 from scipy.spatial import distance_matrix
+import csv
+from datetime import datetime
 
 #TAKEN FROM GENBALLS07
 
@@ -380,13 +382,13 @@ def log_statistics(args, df):
 
 
 #Set up logging
-def setup_logging(run_folder, seed):
-    log_file = os.path.join(run_folder, f'run.log')
+def setup_logging(runs_dir, seed):
+    log_file = os.path.join(runs_dir, f'run.log')
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Create a separate statistics file
-    stats_file = os.path.join(run_folder, f'statistics.json')
+    stats_file = os.path.join(runs_dir, f'statistics.json')
     
     # Log the seed
     logging.info(f"Random seed: {seed}")
@@ -657,11 +659,11 @@ def main(args):
     runs_dir = 'runs'
     if not os.path.exists(runs_dir):
         os.makedirs(runs_dir)
-    run_folder = os.path.join(runs_dir, run_id)
-    os.makedirs(run_folder)
+#    run_folder = os.path.join(runs_dir, run_id)
+#    os.makedirs(run_folder)
 
     # Setup logging and get stats file path
-    stats_file = setup_logging(run_folder, args.seed)
+    stats_file = setup_logging(runs_dir, args.seed)
 
     if args.seed is None:
         args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
@@ -710,9 +712,11 @@ def main(args):
     #generate_piff_file(df, dx=8.0, filename=filename)
 
     # Write the combined CSV directly to the run folder
-    csv_filename = f'{run_id}_combined.csv'
-    csv_filepath = os.path.join(run_folder, csv_filename)
-    write_combined_csv(run_folder, run_id, args, df)
+    #csv_filename = f'{run_id}_combined.csv'
+    #csv_filepath = os.path.join(run_folder, csv_filename)
+    #write_combined_csv(run_folder, run_id, args, df)
+    write_all_combined_csv(runs_dir, args, df)
+    
 
 #    # Save a copy of the PIFF file in the run folder
 #    piff_copy_path = os.path.join(run_folder, filename)
@@ -778,8 +782,6 @@ def write_combined_csv(run_folder, run_id, args, df):
     """
     Write a single CSV file containing both summary and detailed information.
     """
-    import csv
-    from datetime import datetime
     
     # Separate vacuole and spheroids
     vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
@@ -790,6 +792,7 @@ def write_combined_csv(run_folder, run_id, args, df):
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
     vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
     success_rate = len(spheroids) / args.N * 100
+    
     
     # Create output file path
     output_file = os.path.join(run_folder, f'{run_id}_combined.csv')
@@ -897,7 +900,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Packing Density (%)', float(total_spheroid_volume / vacuole_volume * 100))
             ]
             writer.writerows(stats_data)
-        
+                       
         logging.info(f"Generated combined CSV file: {output_file}")
         return output_file
         
@@ -905,6 +908,58 @@ def write_combined_csv(run_folder, run_id, args, df):
         logging.error(f"Error writing combined CSV file: {str(e)}")
         raise
 
+def write_all_combined_csv(runs_dir, args, df):
+    """
+    Write a single CSV file for all of the runs containing body size information.  Puts it in the "runs" folder.  
+    """
+    
+    # Separate vacuole and spheroids
+    vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
+    spheroids = df[df['bodyType'] == 'APB']
+    
+    # Create combined output file in the runs directory for all bodies, to check body size distributions
+    all_output_file = os.path.join(runs_dir, 'Body_Size_combined.csv')
+        
+    try:
+        with open(all_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # === Detailed Cell Information Section ===
+            writer.writerow([
+                'cell_id', 'type', 'x', 'y', 'z', 'radius', 'volume',
+                'distance_from_center', 'nearest_neighbor_center_distance',
+                'nearest_neighbor_surface_distance', 'num_neighbors',
+                'local_density', 'distance_to_wall', 'p_value', 'size_mu', 'size_sigma'
+            ])
+            
+            # Process and write spheroid data first
+            for idx, spheroid in enumerate(spheroids.itertuples(), 1):
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole, args.max_radius)
+                
+                writer.writerow([
+                    idx,  # cell_id
+                    'Body',  # type
+                    spheroid.x,
+                    spheroid.y,
+                    spheroid.z,
+                    spheroid.r,
+                    metrics['volume'],
+                    metrics['distance_from_center'],
+                    metrics['nearest_neighbor_center_distance'],
+                    metrics['nearest_neighbor_surface_distance'],
+                    metrics['num_neighbors'],
+                    metrics['local_density'],
+                    metrics['distance_to_wall'],
+                    spheroid.p,
+                    args.mu,
+                    args.sigma
+                ])
+        logging.info(f"Generated completely combined CSV file: {all_output_file}")
+        return all_output_file
+              
+    except Exception as e:
+        logging.error(f"Error writing completely combined CSV file")
+        raise
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
