@@ -84,6 +84,7 @@ def run_pipeline(cc3d = True):
                 'Body_Radius_Mu', 
                 'Body_Radius_Sigma', 
                 'Average_Body_Radius', 
+                'Largest_Body_Radius',
                 'Standard_Deviation_Body_Radius',
                 'Average_Distance_from_Origin',
                 'Body_Number_Mu',

@@ -992,6 +992,7 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
     # Calculate additional statistics
     avg_radius = spheroids['r'].mean()
     std_radius = spheroids['r'].std()
+    largest_radius = spheroids['r'].max()
     avg_distance = spheroids.apply(
         lambda row: np.sqrt(row['x']**2 + row['y']**2 + row['z']**2), 
         axis=1
@@ -1015,6 +1016,7 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
                 args.sigma, #body radius sigma
                 float(avg_radius),
                 float(std_radius),
+                float(largest_radius),
                 float(avg_distance),
                 args.mu_body_number,
                 args.sigma_body_number,
