@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 import subprocess
 import time
+from datetime import datetime
 import os
 import sys
 import stat
 import numpy as np
+import csv
+
 
 def main():
     print("Welcome to the Autophagic Vacuole Simulation (AVS) Project")
 
     while True:
         print(">> Please select from the following options by entering the corresponding number:")
-        print("\t[1]: Run pipeline with nested iterations over Body Number and Body Size")
-        print("\t[2]: Run vacuole_gen alone")
-        print("\t[3]: Run CC3D alone in headless mode")
-        print("\t[4]: Run Slice Stats alone")
-        print("\t[5]: Run AVS Stats alone")
+        print("\t[1]: Run the full pipeline with nested iterations over Body Number and Body Size")
+        print("\t[2]: Run vacuole_gen alone, with nested iterations but no PIFF file generation, for testing")
+        print("\t[3]: Run vacuole_gen alone, with nested iterations but no CC3D, for making PIFF files")
+        print("\t[4]: Run CC3D alone in headless mode")
+        print("\t[5]: Run Slice Stats alone")
+        print("\t[6]: Run AVS Stats alone")
         print("\t[9]: Read the ReadMe file")
         print("\t[0]: Exit AVS")
 
@@ -25,17 +29,19 @@ def main():
             print("--- Now exiting AVS ---")
             sys.exit()
         elif scriptChoice == "1":
-            run_pipeline(cc3d = True)
+            run_pipeline(cc3d = True, PIFF = 1)   # PIFF files will be made for cc3d, but overwritten each run (not saved)
         elif scriptChoice == "2":
-            option_two()
+            run_pipeline(cc3d = False, PIFF = 0)  
         elif scriptChoice == "3":
-            option_three()
+            run_pipeline(cc3d = False, PIFF = 2)
         elif scriptChoice == "4":
-            option_four()
+            run_cc3d_script()
         elif scriptChoice == "5":
-            option_five()
+            run_SliceStats()
+        elif scriptChoice == "6":
+            run_AVSStats()
         elif scriptChoice == "9":
-            option_nine()
+            read_readme()
         else:
             print("--- Invalid Input, please select one of the above options ---")
 
@@ -57,10 +63,63 @@ def load_model_parameters(file_path="Model_Parameters.txt"):
     return params
 
 
-def run_pipeline(cc3d = True):
+def run_pipeline(cc3d = True, PIFF = False):
     """
     Run pipeline iterating over Body Number and Body Size using nested loops.
     """
+    
+    #Create a directory to store the results in
+    runs_dir = 'runs'
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir)
+    
+    # Generate a unique overall ID based on the current date and time
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    # Create a new folder for this run
+    run_folder = os.path.join(runs_dir, run_id)
+    os.makedirs(run_folder)
+
+    #Intializing headers for vacuole data output csv file
+    vac_output_file = os.path.join(run_folder, 'Vacuole_Data_combined.csv')
+    
+    try:  
+        with open(vac_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # Columns of info to output
+            writer.writerow([
+                'Run_ID', 
+                'timestamp', 
+                'Seed', 
+                'Grid_Resolution_(dx)', 
+                'Body_Radius_Mu', 
+                'Body_Radius_Sigma', 
+                'Average_Body_Radius', 
+                'Largest_Body_Radius',
+                'Standard_Deviation_Body_Radius',
+                'Average_Distance_from_Origin',
+                'Body_Number_Mu',
+                'Body_Number_Sigma',  
+                'Number_of_Bodies_Requested', 
+                'Number_of_Bodies_Placed', 
+                'Success_Rate_(%)', 
+                'Iterations', 
+                'Optimization_Max_Iterations', 
+                'Wall_Radius_Mu', 
+                'Wall_Radius_Sigma', 
+                'Vacuole_Inner_Radius', 
+                'Vacuole_Volume', 
+                'Total_Body_Volume', 
+                'Packing_Density_(%)', 
+                'Maximum_Tries',
+                'Actual_Tries'
+                ]) 
+            
+    except Exception as e:
+        print(f"Error writing completely combined vacuole data CSV file")
+        raise
+                
     params = load_model_parameters("./attributes/Model_Parameters.txt")
     if not params:
         raise ValueError("Failed to load parameters from Model_Parameters.txt.")
@@ -95,20 +154,22 @@ def run_pipeline(cc3d = True):
             while mu_body_size <= mu_body_size_end:
                 sigma_body_size = sigma_body_size_start
                 while sigma_body_size <= sigma_body_size_end:
-                    N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
-                    print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}")
-                    print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
-
                     for run_idx in range(sample_size):
+                        N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
+                        print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}")
+                        print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
                         print(f"Sample {run_idx + 1}/{sample_size}")
                         vacuolegenmain(
+                            run_folder = run_folder,
                             N_spheroids=N_spheroids,
                             mu_body_number=mu_body_number,
                             sigma_body_number=sigma_body_number,
                             mu_body_size=mu_body_size,
                             sigma_body_size=sigma_body_size,
                             wall_radius_mu=wall_radius_mu,
-                            wall_radius_sigma=wall_radius_sigma
+                            wall_radius_sigma=wall_radius_sigma,
+                            PIFF = PIFF
+                            
                         )
 
                         # Run CompuCell3D simulation (only if called for)
@@ -123,7 +184,7 @@ def run_pipeline(cc3d = True):
     print("--- Pipeline execution complete ---")
 
 
-def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma):
+def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma, PIFF):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -132,11 +193,16 @@ def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size,
     command = [
         sys.executable,
         "vacuole_gen.py",
+        "--run_folder", str(run_folder),
         "--N", str(N_spheroids),
         "--mu", str(mu_body_size),
         "--sigma", str(sigma_body_size),
         "--wall_radius_mu", str(wall_radius_mu),
-        "--wall_radius_sigma", str(wall_radius_sigma)
+        "--wall_radius_sigma", str(wall_radius_sigma),
+        "--mu_body_number", str(mu_body_number),
+        "--sigma_body_number", str(sigma_body_number),
+        "--PIFF", str(PIFF)
+        
     ]
 
     try:
@@ -172,35 +238,6 @@ def run_cc3d_script():
         print(f"CC3D simulation completed in {end_time - start_time:.2f} seconds.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running runScript.sh: {e}")
-
-
-def option_two():
-    print("--- Option Two Selected ---")
-    run_vacuole_gen()
-    print("--- Option Two Complete ---")
-    
-def option_three():
-    print("--- Option Three Selected ---")
-    run_cc3d_script()
-    print("--- Option Three Complete ---")
-
-
-def option_four():
-    print("--- Option Four Selected ---")
-    run_SliceStats()
-    print("--- Option Four Complete ---")
-
-
-def option_five():
-    print("--- Option Five Selected ---")
-    run_AVSStats()
-    print("--- Option Five Complete ---")
-
-
-def option_nine():
-    print("--- Option Nine Selected ---")
-    read_readme()
-    print("--- Option Nine Complete ---")
 
 
 def run_SliceStats():

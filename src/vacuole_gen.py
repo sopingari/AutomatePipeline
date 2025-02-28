@@ -19,6 +19,8 @@ import pandas as pd
 from scipy.stats import ortho_group
 from scipy.optimize import minimize
 from scipy.spatial import distance_matrix
+import csv
+from datetime import datetime
 
 #TAKEN FROM GENBALLS07
 
@@ -326,7 +328,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   # add the resulting columns to the main dataframe:
   df = pd.concat([df.reset_index(drop=True), dfpos], axis=1)
 
-  return(df,pos_array,r_and_pos_array,dirmat_safe)
+  return(df,pos_array,r_and_pos_array,dirmat_safe,iterCount)
 
 
 def log_statistics(args, df):
@@ -380,13 +382,13 @@ def log_statistics(args, df):
 
 
 #Set up logging
-def setup_logging(run_folder, seed):
-    log_file = os.path.join(run_folder, f'run.log')
+def setup_logging(runs_dir, seed):
+    log_file = os.path.join(runs_dir, f'run.log')
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Create a separate statistics file
-    stats_file = os.path.join(run_folder, f'statistics.json')
+    stats_file = os.path.join(runs_dir, f'statistics.json')
     
     # Log the seed
     logging.info(f"Random seed: {seed}")
@@ -652,13 +654,8 @@ def main(args):
 
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Create a new folder for this run
-    runs_dir = 'runs'
-    if not os.path.exists(runs_dir):
-        os.makedirs(runs_dir)
-    run_folder = os.path.join(runs_dir, run_id)
-    os.makedirs(run_folder)
+    
+    run_folder = args.run_folder
 
     # Setup logging and get stats file path
     stats_file = setup_logging(run_folder, args.seed)
@@ -684,9 +681,10 @@ def main(args):
     DX = args.dx
     MAX_TRIES = args.max_tries
     filename = args.output
+    PIFF = args.PIFF
 
     # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe = genBalls3(
+    df, pos_array, r_and_pos_array, dirmat_safe, iterCount = genBalls3(
         bodies=N_SPHEROIDS,
         wall_Radius_Mu=WALL_RADIUS_MU,
         wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
@@ -705,25 +703,30 @@ def main(args):
 
     # Log statistics
     log_statistics(args, df)
+    
+    # Write the combined CSVs directly to the run folder
+    write_body_size_combined_csv(run_folder, run_id, args, df)
+    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount)
+    
+    # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
+    if PIFF == 1 or PIFF == 2:
+        generate_piff_file(df, dx=DX, filename=filename)
 
-    # Generate PIFF file
-    generate_piff_file(df, dx=8.0, filename=filename)
-
-    # Write the combined CSV directly to the run folder
-    csv_filename = f'{run_id}_combined.csv'
-    csv_filepath = os.path.join(run_folder, csv_filename)
-    write_combined_csv(run_folder, run_id, args, df)
-
-    # Save a copy of the PIFF file in the run folder
-    piff_copy_path = os.path.join(run_folder, filename)
-    shutil.copy(filename, piff_copy_path)
-    logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
-
-    # Save the PIFF file in the Simulation folder (for cc3d use)
-    cc3d = './CompuCell3D/cc3dSimulation/Simulation'
-    if os.path.exists(cc3d):
-        shutil.copy(filename, os.path.join(cc3d, filename))
-        logging.info(f"Copied PIFF file to CC3D simulation folder")
+        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
+        if os.path.exists(cc3d):
+            shutil.copy(filename, os.path.join(cc3d, filename))
+            logging.info(f"Copied PIFF file to CC3D simulation folder")
+        
+   
+    #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
+    # Also add statistics for that run as a csv to that folder.  
+    if PIFF == 2:
+        run_subfolder = os.path.join(run_folder, run_id)
+        os.makedirs(run_subfolder)
+        piff_copy_path = os.path.join(run_subfolder, filename)
+        shutil.copy(filename, piff_copy_path)
+        logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
+        write_combined_csv(run_subfolder, run_id, args, df)
 
     logging.info(f"Run {run_id} completed successfully.")
 
@@ -778,8 +781,6 @@ def write_combined_csv(run_folder, run_id, args, df):
     """
     Write a single CSV file containing both summary and detailed information.
     """
-    import csv
-    from datetime import datetime
     
     # Separate vacuole and spheroids
     vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
@@ -790,6 +791,7 @@ def write_combined_csv(run_folder, run_id, args, df):
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
     vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
     success_rate = len(spheroids) / args.N * 100
+    
     
     # Create output file path
     output_file = os.path.join(run_folder, f'{run_id}_combined.csv')
@@ -897,7 +899,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Packing Density (%)', float(total_spheroid_volume / vacuole_volume * 100))
             ]
             writer.writerows(stats_data)
-        
+                       
         logging.info(f"Generated combined CSV file: {output_file}")
         return output_file
         
@@ -905,16 +907,153 @@ def write_combined_csv(run_folder, run_id, args, df):
         logging.error(f"Error writing combined CSV file: {str(e)}")
         raise
 
+def write_body_size_combined_csv(runs_dir, run_id, args, df):
+    """
+    Write a single CSV file for all of the runs containing body size information.    
+    """
+    
+    # Separate vacuole and spheroids
+    vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
+    spheroids = df[df['bodyType'] == 'APB']
+    
+    # Create combined output file in the runs directory for all bodies, to check body size distributions
+    body_output_file = os.path.join(runs_dir, 'Body_Size_combined.csv')
+        
+    try:
+        with open(body_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # === Detailed Cell Information Section ===
+            writer.writerow([
+                'Run ID', 
+                'Cell ID', 
+                'type', 
+                'x', 
+                'y', 
+                'z', 
+                'radius', 
+                'volume',
+                'distance_from_center',
+                'nearest_neighbor_center_distance',
+                'nearest_neighbor_surface_distance',
+                'num_neighbors',
+                'local_density',
+                'distance_to_wall', 
+                'p_value', 
+                'Body_Radius_Mu', 
+                'Body_Radius_Sigma'
+            ])
+            
+            # Process and write spheroid data first
+            for idx, spheroid in enumerate(spheroids.itertuples(), 1):
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole, args.max_radius)
+                
+                writer.writerow([
+                    run_id,
+                    idx,  # cell_id
+                    'Body',  # type
+                    spheroid.x,
+                    spheroid.y,
+                    spheroid.z,
+                    spheroid.r,
+                    metrics['volume'],
+                    metrics['distance_from_center'],
+                    metrics['nearest_neighbor_center_distance'],
+                    metrics['nearest_neighbor_surface_distance'],
+                    metrics['num_neighbors'],
+                    metrics['local_density'],
+                    metrics['distance_to_wall'],
+                    spheroid.p,
+                    args.mu,
+                    args.sigma
+                ])
+        logging.info(f"Updated combined body size CSV file: {body_output_file}")
+        return body_output_file
+              
+    except Exception as e:
+        logging.error(f"Error writing completely combined body size CSV file")
+        raise
 
+def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
+    """
+    Write a single CSV file for all of the runs containing information on the vacuole size and body number.  Puts it in the "runs" folder.  
+    """
+    
+    # Separate vacuole and spheroids
+    vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
+    spheroids = df[df['bodyType'] == 'APB']
+    
+    # Calculate global statistics
+    # Vacuole volume based on inner radius; the hollow volume that the spheres can be in is what matters #sbackues
+    total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
+    vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
+    success_rate = len(spheroids) / args.N * 100
+    
+    # Calculate additional statistics
+    avg_radius = spheroids['r'].mean()
+    std_radius = spheroids['r'].std()
+    largest_radius = spheroids['r'].max()
+    avg_distance = spheroids.apply(
+        lambda row: np.sqrt(row['x']**2 + row['y']**2 + row['z']**2), 
+        axis=1
+    ).mean()
+            
+    # Create combined output file in the runs directory for all runs
+    vac_output_file = os.path.join(runs_dir, 'Vacuole_Data_combined.csv')
+    
+    try:  
+        with open(vac_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+
+            # Column headers were created in Pipeline_Interface
+            # outputting a line of actual info
+            writer.writerow([
+                run_id,
+                datetime.now().isoformat(),
+                args.seed,
+                args.dx,
+                args.mu,    #body radius mu
+                args.sigma, #body radius sigma
+                float(avg_radius),
+                float(std_radius),
+                float(largest_radius),
+                float(avg_distance),
+                args.mu_body_number,
+                args.sigma_body_number,
+                args.N,
+                len(spheroids),
+                success_rate,
+                args.iterations,
+                args.optimmaxiter,
+                args.wall_radius_mu,
+                args.wall_radius_sigma,
+                float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner']),
+                float(vacuole_volume),
+                float(total_spheroid_volume),
+                float(total_spheroid_volume / vacuole_volume * 100),
+                args.max_tries,
+                iterCount
+                ])                                           
+                
+        logging.info(f"Updated combined vacuole data CSV file: {vac_output_file}")
+        return vac_output_file
+              
+    except Exception as e:
+        logging.error(f"Error writing completely combined vacuole data CSV file")
+        raise
+              
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate PIFF file with N randomly clustered spheroids inside a surrounding hollow Wall.')
+    parser.add_argument('--run_folder', type=str, required=True, help='Folder to save the results into')
     parser.add_argument('--N', type=int, required=True, help='Number of internal spheroids to generate')
     parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
     parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
     parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
     parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
-       
+    parser.add_argument('--mu_body_number', type=float, required=True, help='Log-normal mean for body number')   
+    parser.add_argument('--sigma_body_number', type=float, required=True, help='Log-normal sigma for body number')      
     parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
     parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
@@ -925,7 +1064,8 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
     parser.add_argument('--optimmaxiter', type=int, default=100, help='Maximum iterations for optimization')
-    parser.add_argument('--csv_output', type=str, help='Output CSV file name')
+    parser.add_argument('--PIFF', type=int, default=1, help='0=no PIFF, 1=PIFF overwritten, 2=PIFF saved')
+    
 
     args = parser.parse_args()
     main(args)
