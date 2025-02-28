@@ -347,8 +347,6 @@ def log_statistics(args, df):
         "seed": args.seed,
         "num_spheroids_requested": args.N,
         "num_spheroids_placed": len(spheroids),
-        "min_radius": args.min_radius,
-        "max_radius": args.max_radius,
         "vacuole_outer_radius": vacuole['rOuter'], # aross15 making it more clear
         "vacuole_inner_radius": vacuole['rInner'],    #sbackues
         "dx": args.dx,
@@ -365,12 +363,6 @@ def log_statistics(args, df):
     total_volume = ((4/3) * np.pi * (spheroid_radii ** 3)).sum()
     stats["total_spheroid_volume"] = float(total_volume)
     
-    '''
-    # Vacuole volume
-    vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
-    stats["vacuole_volume"] = float(vacuole_volume)
-    '''
-
     # Vacuole volume
     vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
     stats["vacuole_volume"] = float(vacuole_volume.item()) if isinstance(vacuole_volume, np.ndarray) else float(vacuole_volume)
@@ -673,11 +665,8 @@ def main(args):
     N_SPHEROIDS = args.N
     BODY_MU = args.mu
     BODY_SIGMA = args.sigma
-    MIN_RADIUS = args.min_radius
-    MAX_RADIUS = args.max_radius
     WALL_RADIUS_MU = args.wall_radius_mu
     WALL_RADIUS_SIGMA = args.wall_radius_sigma
-    WALL_THICKNESS = args.wall_thickness
     DX = args.dx
     MAX_TRIES = args.max_tries
     filename = args.output
@@ -731,7 +720,7 @@ def main(args):
     logging.info(f"Run {run_id} completed successfully.")
 
 
-def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius):
+def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius=8.0):
     """
     Calculate additional metrics for a single spheroid.
     """
@@ -810,21 +799,18 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Number of Spheroids Requested', args.N),
                 ('Number of Spheroids Placed', len(spheroids)),
                 ('Success Rate (%)', success_rate),
-                ('Minimum Radius', args.min_radius),
-                ('Maximum Radius', args.max_radius),
                 ('Body Radius Mu', args.mu),
                 ('Body Radius Sigma', args.sigma),
+                ('Wall Radius Mu', args.wall_radius_mu),
+                ('Wall Radius Sigma', args.wall_radius_sigma),
+                ('Body Number Mu', args.mu_body_number),
+                ('Body Number Sigma', args.sigma_body_number), 
                 ('Vacuole Inner Radius', float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])), #sbackues
-                ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
                 ('Maximum Tries', args.max_tries),
                 ('Total Spheroid Volume', float(total_spheroid_volume)),
                 ('Vacuole Volume', float(vacuole_volume)),
                 ('Total Volume', float(total_spheroid_volume + vacuole_volume)),
-                ('Distribution Mean (mu)', np.log((args.min_radius + args.max_radius) / 2)),
-                ('Distribution Sigma', args.sigma),
-                ('Wall Radius Mean (mu)', args.wall_radius_mu),
-                ('Wall Radius Sigma', args.wall_radius_sigma),
                 ('Iterations', args.iterations),
                 ('Optimization Max Iterations', args.optimmaxiter)
             ]
@@ -842,7 +828,7 @@ def write_combined_csv(run_folder, run_id, args, df):
             
             # Process and write spheroid data first
             for idx, spheroid in enumerate(spheroids.itertuples(), 1):
-                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole, args.max_radius)
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole)
                 
                 writer.writerow([
                     idx,  # cell_id
@@ -946,7 +932,7 @@ def write_body_size_combined_csv(runs_dir, run_id, args, df):
             
             # Process and write spheroid data first
             for idx, spheroid in enumerate(spheroids.itertuples(), 1):
-                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole, args.max_radius)
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole)
                 
                 writer.writerow([
                     run_id,
@@ -1023,8 +1009,8 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
                 args.N,
                 len(spheroids),
                 success_rate,
-                args.iterations,
-                args.optimmaxiter,
+                args.iterations,     #Body placement attempts
+                args.optimmaxiter,   #Number of iterations of the clustering code
                 args.wall_radius_mu,
                 args.wall_radius_sigma,
                 float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner']),
@@ -1054,10 +1040,8 @@ if __name__ == "__main__":
     parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
     parser.add_argument('--mu_body_number', type=float, required=True, help='Log-normal mean for body number')   
     parser.add_argument('--sigma_body_number', type=float, required=True, help='Log-normal sigma for body number')      
-    parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
-    parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
-    parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall (default: 2)')
+    parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall for visualization (default: 2) - not used in the PIFF file')
     parser.add_argument('--dx', type=float, default=8.0, help='Resolution for grid boxes (default: 1.0)')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
