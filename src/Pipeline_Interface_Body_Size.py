@@ -5,6 +5,7 @@ import os
 import sys
 import stat
 import numpy as np
+import csv
 
 def main():
     print("Welcome to the Autophagic Vacuole Simulation (AVS) Project")
@@ -61,6 +62,51 @@ def run_pipeline(cc3d = True):
     """
     Run pipeline iterating over Body Number and Body Size using nested loops.
     """
+    
+    #Create a directory to store the results in
+    runs_dir = 'runs'
+    if not os.path.exists(runs_dir):
+        os.makedirs(runs_dir)
+
+    #Intializing headers for vacuole data output csv file
+    vac_output_file = os.path.join(runs_dir, 'Vacuole_Data_combined.csv')
+    
+    try:  
+        with open(vac_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # Columns of info to output
+            writer.writerow([
+                'Run_ID', 
+                'timestamp', 
+                'Seed', 
+                'Grid_Resolution_(dx)', 
+                'Body_Radius_Mu', 
+                'Body_Radius_Sigma', 
+                'Average_Body_Radius', 
+                'Standard_Deviation_Body_Radius',
+                'Average_Distance_from_Origin',
+                'Body_Number_Mu',
+                'Body_Number_Sigma',  
+                'Number_of_Bodies_Requested', 
+                'Number_of_Bodies_Placed', 
+                'Success_Rate_(%)', 
+                'Iterations', 
+                'Optimization_Max_Iterations', 
+                'Wall_Radius_Mu', 
+                'Wall_Radius_Sigma', 
+                'Vacuole_Inner_Radius', 
+                'Vacuole_Volume', 
+                'Total_Body_Volume', 
+                'Packing_Density_(%)', 
+                'Maximum_Tries',
+                'Actual_Tries'
+                ]) 
+            
+    except Exception as e:
+        print(f"Error writing completely combined vacuole data CSV file")
+        raise
+                
     params = load_model_parameters("./attributes/Model_Parameters.txt")
     if not params:
         raise ValueError("Failed to load parameters from Model_Parameters.txt.")
@@ -101,6 +147,7 @@ def run_pipeline(cc3d = True):
                         print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}")
                         print(f"Sample {run_idx + 1}/{sample_size}")
                         vacuolegenmain(
+                            runs_dir=runs_dir,
                             N_spheroids=N_spheroids,
                             mu_body_number=mu_body_number,
                             sigma_body_number=sigma_body_number,
@@ -122,7 +169,7 @@ def run_pipeline(cc3d = True):
     print("--- Pipeline execution complete ---")
 
 
-def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma):
+def vacuolegenmain(runs_dir, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -131,11 +178,14 @@ def vacuolegenmain(N_spheroids, mu_body_number, sigma_body_number, mu_body_size,
     command = [
         sys.executable,
         "vacuole_gen_Body_Size.py",
+        "--runs_dir", str(runs_dir),
         "--N", str(N_spheroids),
         "--mu", str(mu_body_size),
         "--sigma", str(sigma_body_size),
         "--wall_radius_mu", str(wall_radius_mu),
-        "--wall_radius_sigma", str(wall_radius_sigma)
+        "--wall_radius_sigma", str(wall_radius_sigma),
+        '--mu_body_number', str(mu_body_number),
+        '--sigma_body_number', str(sigma_body_number)
     ]
 
     try:
