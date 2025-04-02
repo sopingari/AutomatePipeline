@@ -22,6 +22,7 @@ from scipy.spatial import distance_matrix
 import csv
 from datetime import datetime
 
+
 #TAKEN FROM GENBALLS07
 
 def cartesian_product(a,b,c=[0]):
@@ -388,7 +389,7 @@ def setup_logging(runs_dir, seed):
     return stats_file
 
 #genballs
-def generate_piff_file(df, dx=8.0, filename='output.piff'):
+def generate_piff_file(df, dx, filename='output.piff'):
     """
     Generates a PIFF file with spheroids and surrounding wall.
 
@@ -690,6 +691,9 @@ def main(args):
         maxVacuoleIterations=100
     )
 
+    plot_vacuole_spheres(df, show_inner=True, save_path="my_plot.png")
+
+
     # Log statistics
     log_statistics(args, df)
     
@@ -699,7 +703,7 @@ def main(args):
     
     # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
     if PIFF == 1 or PIFF == 2:
-        generate_piff_file(df, dx=DX, filename=filename)
+        generate_piff_file(df, dx=args.dx, filename=filename)
 
         cc3d = './CompuCell3D/cc3dSimulation/Simulation'
         if os.path.exists(cc3d):
@@ -1018,7 +1022,10 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
                 float(total_spheroid_volume),
                 float(total_spheroid_volume / vacuole_volume * 100),
                 args.max_tries,
-                iterCount
+                iterCount,
+                float(vacuole['x'].item() if isinstance(vacuole['x'], np.ndarray) else vacuole['x']),  # Add x-coordinate
+                float(vacuole['y'].item() if isinstance(vacuole['y'], np.ndarray) else vacuole['y']),  # Add y-coordinate
+                float(vacuole['z'].item() if isinstance(vacuole['z'], np.ndarray) else vacuole['z'])   # Add z-coordinate
                 ])                                           
                 
         logging.info(f"Updated combined vacuole data CSV file: {vac_output_file}")
@@ -1027,7 +1034,121 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
     except Exception as e:
         logging.error(f"Error writing completely combined vacuole data CSV file")
         raise
-              
+
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+
+def plot_vacuole_spheres(df, show_inner=False, save_path=None):
+    """
+    Plot spheres (APBs) inside a vacuole using data from a DataFrame
+    with columns at least:
+      - 'bodyType': "APB" or "Vacuole"
+      - 'rInner', 'rOuter' (for the vacuole row)
+      - 'x', 'y', 'z', 'r' (for each APB and the vacuole)
+    
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        DataFrame containing the simulation results:
+        - One row where 'bodyType' == 'Vacuole' with columns 'rInner', 'rOuter', 'x', 'y', 'z'.
+        - Multiple rows where 'bodyType' == 'APB' with columns 'r', 'x', 'y', 'z'.
+    show_inner : bool, optional
+        If True, also draws the vacuole's inner boundary as a wireframe.
+    save_path : str, optional
+        If provided, saves the figure to this file path (e.g., 'vacuole_plot.png').
+        Otherwise, shows the figure interactively.
+    """
+
+    # --- Helper function to draw a sphere/wireframe
+    def draw_sphere(ax, center, radius, color='blue', alpha=0.2, wireframe=False):
+        # Parametric angles
+        u = np.linspace(0, 2*np.pi, 30)
+        v = np.linspace(0, np.pi, 30)
+        # Mesh for sphere
+        x = center[0] + radius * np.outer(np.cos(u), np.sin(v))
+        y = center[1] + radius * np.outer(np.sin(u), np.sin(v))
+        z = center[2] + radius * np.outer(np.ones(u.size), np.cos(v))
+        
+        if wireframe:
+            ax.plot_wireframe(x, y, z, color=color, alpha=alpha, linewidth=0.5)
+        else:
+            ax.plot_surface(x, y, z, color=color, alpha=alpha, linewidth=0)
+
+    # --- Create the 3D figure
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # --- Separate vacuole and APBs from df
+    vacuole = df.loc[df['bodyType'] == 'Vacuole'].iloc[0]
+    apbs = df.loc[df['bodyType'] == 'APB']
+
+    # --- Plot the vacuole's outer boundary as a translucent surface
+    draw_sphere(ax,
+                center=(vacuole['x'], vacuole['y'], vacuole['z']),
+                radius=vacuole['rOuter'],
+                color='skyblue',
+                alpha=0.2,
+                wireframe=False)
+
+    # --- Optionally, plot the vacuole's inner boundary as a wireframe
+    if show_inner and 'rInner' in vacuole:
+        draw_sphere(ax,
+                    center=(vacuole['x'], vacuole['y'], vacuole['z']),
+                    radius=vacuole['rInner'],
+                    color='blue',
+                    alpha=0.3,
+                    wireframe=True)
+
+    # --- Plot all APBs as solid red spheres
+    for _, row in apbs.iterrows():
+        draw_sphere(ax,
+                    center=(row['x'], row['y'], row['z']),
+                    radius=row['r'],
+                    color='red',
+                    alpha=0.8,
+                    wireframe=False)
+
+    # --- Make the axes look nice and symmetric
+    # Gather all coordinate extents to set uniform axes
+    coords = []
+    # APBs extents
+    coords.extend([apbs['x'].min(), apbs['y'].min(), apbs['z'].min(),
+                   apbs['x'].max(), apbs['y'].max(), apbs['z'].max()])
+    # Vacuole extents (outer boundary)
+    coords.extend([
+        vacuole['x'] - vacuole['rOuter'], vacuole['x'] + vacuole['rOuter'],
+        vacuole['y'] - vacuole['rOuter'], vacuole['y'] + vacuole['rOuter'],
+        vacuole['z'] - vacuole['rOuter'], vacuole['z'] + vacuole['rOuter']
+    ])
+
+    # Compute min & max for uniform scaling
+    min_val, max_val = np.nanmin(coords), np.nanmax(coords)
+    # Expand slightly so we don't cut off surfaces
+    margin = 0.05 * (max_val - min_val)
+    min_val -= margin
+    max_val += margin
+
+    ax.set_xlim(min_val, max_val)
+    ax.set_ylim(min_val, max_val)
+    ax.set_zlim(min_val, max_val)
+    ax.set_box_aspect((1, 1, 1))  # Force cubic aspect ratio
+
+    # --- Labeling
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Result of vacuole_gen.py')
+
+    # --- Save or show
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Saved figure to {save_path}")
+        plt.close(fig)
+    else:
+        plt.show()
+
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -1039,17 +1160,19 @@ if __name__ == "__main__":
     parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
     parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
     parser.add_argument('--mu_body_number', type=float, required=True, help='Log-normal mean for body number')   
-    parser.add_argument('--sigma_body_number', type=float, required=True, help='Log-normal sigma for body number')      
+    parser.add_argument('--sigma_body_number', type=float, required=True, help='Log-normal sigma for body number')     
+    parser.add_argument('--dx', type=float, required=True, help='Resolution for grid boxes (default: 1.0)')
+     
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
     parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall for visualization (default: 2) - not used in the PIFF file')
-    parser.add_argument('--dx', type=float, default=8.0, help='Resolution for grid boxes (default: 1.0)')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
-    parser.add_argument('--optimmaxiter', type=int, default=100, help='Maximum iterations for optimization')
+    parser.add_argument('--optimmaxiter', type=int, default=0, help='Maximum iterations for optimization')
     parser.add_argument('--PIFF', type=int, default=1, help='0=no PIFF, 1=PIFF overwritten, 2=PIFF saved')
     
 
     args = parser.parse_args()
     main(args)
+
