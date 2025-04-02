@@ -396,7 +396,7 @@ def setup_logging(run_folder, seed):
     return stats_file
 
 #genballs
-def generate_piff_file(df, dx=1.0, filename='output.piff'):
+def generate_piff_file(df, dx=8.0, filename='output.piff'):
     """
     Generates a PIFF file with spheroids and surrounding wall.
 
@@ -415,8 +415,8 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
 
     # Generate boxes for spheroids (Body cells)
     for index, spheroid in spheroids.iterrows():
-        x0, y0, z0 = spheroid['x'], spheroid['y'], spheroid['z']
-        R = spheroid['r']
+        x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx
+        R = spheroid['r'] / dx
         # Define bounding box
         x_min = x0 - R
         x_max = x0 + R
@@ -458,9 +458,11 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
 
     # Generate boxes for the vacuole (Wall)
     wall_cell_id = cell_id  # Assign a unique CellID for the wall
-    x0, y0, z0 = vacuole['x'], vacuole['y'], vacuole['z']
-    R_outer = vacuole['rOuter']
-    R_inner = vacuole['rInner'] # aross15
+    
+    # Scale physical coordinates and radii down to grid units
+    x0, y0, z0 = vacuole['x'] / dx, vacuole['y'] / dx, vacuole['z'] / dx
+    R_outer = vacuole['rOuter'] / dx
+    R_inner = vacuole['rInner'] / dx# aross15
 
     # Define bounding box for the wall
     x_min = x0 - R_outer
@@ -470,12 +472,6 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     z_min = z0 - R_outer
     z_max = z0 + R_outer
 
-    # Generate grid within bounding box
-    '''
-    x_vals = np.arange(x_min, x_max, dx)
-    y_vals = np.arange(y_min, y_max, dx)
-    z_vals = np.arange(z_min, z_max, dx)
-    '''
     # Ensure all inputs to np.arange are scalars
     x_min = float(x_min.item()) if isinstance(x_min, np.ndarray) else float(x_min)
     x_max = float(x_max.item()) if isinstance(x_max, np.ndarray) else float(x_max)
@@ -485,7 +481,7 @@ def generate_piff_file(df, dx=1.0, filename='output.piff'):
     z_max = float(z_max.item()) if isinstance(z_max, np.ndarray) else float(z_max)
     dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
 
-    # Generate values using np.arange
+    # Generate the grid points for voxel placement, the dx step size ensures that the grid points are spaced correctly
     x_vals = np.arange(x_min, x_max, dx)
     y_vals = np.arange(y_min, y_max, dx)
     z_vals = np.arange(z_min, z_max, dx)
@@ -655,31 +651,7 @@ def load_parameters_from_file(file_path):
         return None
 
 def main(args):
-    '''
-    # Ask if the user wants to override parameters
-    print("Do you want to override the default parameters using 'Model_Parameters.txt'? (yes/no)")
-    user_response = input().strip().lower()
 
-    if user_response == 'yes':
-        # Load parameters from the file
-        param_file_path = './attributes/Model_Parameters.txt'
-        if os.path.exists(param_file_path):
-            params = load_parameters_from_file(param_file_path)
-            if params:
-                # Apply parameters
-                args.N = int(params.get('Sample_Size', args.N))
-                #args.dx = float(params.get('Scale_Factor', args.dx))
-                #args.min_radius = float(params.get('Body_radius_starting_mu', args.min_radius))
-                #args.max_radius = float(params.get('Body_radius_ending_mu', args.max_radius))
-                #args.wall_outer_radius = float(params.get('Wall_Radius_mu', args.wall_outer_radius))
-                #args.wall_thickness = args.wall_outer_radius * 0.05  # Assuming 5% thickness
-
-                print("Parameters updated successfully.")
-            else:
-                print("Failed to load parameters. Using default values.")
-        else:
-            print(f"Parameter file '{param_file_path}' not found. Using default values.")
-    '''
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -704,10 +676,12 @@ def main(args):
 
     # Extract parameters from arguments
     N_SPHEROIDS = args.N
+    BODY_MU = args.mu
+    BODY_SIGMA = args.sigma
     MIN_RADIUS = args.min_radius
     MAX_RADIUS = args.max_radius
-    args.wall_outer_radius = 60.0
-    WALL_OUTER_RADIUS = args.wall_outer_radius
+    WALL_RADIUS_MU = args.wall_radius_mu
+    WALL_RADIUS_SIGMA = args.wall_radius_sigma
     WALL_THICKNESS = args.wall_thickness
     DX = args.dx
     MAX_TRIES = args.max_tries
@@ -716,10 +690,10 @@ def main(args):
     # Generate spheroids using genBalls3
     df, pos_array, r_and_pos_array, dirmat_safe = genBalls3(
         bodies=N_SPHEROIDS,
-        wall_Radius_Mu=np.log(WALL_OUTER_RADIUS),
-        wall_Radius_Sigma=0.34,  # Adjust as needed
-        mu=np.log((MIN_RADIUS + MAX_RADIUS) / 2),
-        sigma=0.1,  # Adjust as needed
+        wall_Radius_Mu=WALL_RADIUS_MU,
+        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
+        mu = BODY_MU,
+        sigma = BODY_SIGMA,
         iterations=args.iterations,
         ndim=3,
         rng=rng,
@@ -735,7 +709,7 @@ def main(args):
     log_statistics(args, df)
 
     # Generate PIFF file
-    generate_piff_file(df, dx=DX, filename=filename)
+    generate_piff_file(df, dx=8.0, filename=filename)
 
     # Write the combined CSV directly to the run folder
     csv_filename = f'{run_id}_combined.csv'
@@ -838,6 +812,8 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Success Rate (%)', success_rate),
                 ('Minimum Radius', args.min_radius),
                 ('Maximum Radius', args.max_radius),
+                ('Body Radius Mu', args.mu),
+                ('Body Radius Sigma', args.sigma),
                 ('Vacuole Inner Radius', float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])), #sbackues
                 ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
@@ -847,8 +823,8 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Total Volume', float(total_spheroid_volume + vacuole_volume)),
                 ('Distribution Mean (mu)', np.log((args.min_radius + args.max_radius) / 2)),
                 ('Distribution Sigma', args.sigma),
-                ('Wall Radius Mean (mu)', np.log(args.wall_outer_radius)),
-                ('Wall Radius Sigma', 0.1),
+                ('Wall Radius Mean (mu)', args.wall_radius_mu),
+                ('Wall Radius Sigma', args.wall_radius_sigma),
                 ('Iterations', args.iterations),
                 ('Optimization Max Iterations', args.optimmaxiter)
             ]
@@ -938,19 +914,17 @@ if __name__ == "__main__":
     parser.add_argument('--N', type=int, required=True, help='Number of internal spheroids to generate')
     parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
     parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
-    #change this when the wall_radius_mu and wall_radius_sigma is fixed
-    parser.add_argument("--wall_radius_mu", type=float, required=False, help="Log-normal mean for wall radius")
-    parser.add_argument("--wall_radius_sigma", type=float, required=False, help="Log-normal sigma for wall radius")    
+    parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
+    parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
        
     parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
     parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
     parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall (default: 2)')
-    parser.add_argument('--dx', type=float, default=1.0, help='Resolution for grid boxes (default: 1.0)')
+    parser.add_argument('--dx', type=float, default=8.0, help='Resolution for grid boxes (default: 1.0)')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
-    #parser.add_argument('--sigma', type=float, default=0.2, help='Standard deviation for log-normal distribution of spheroid radii')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
     parser.add_argument('--optimmaxiter', type=int, default=100, help='Maximum iterations for optimization')
     parser.add_argument('--csv_output', type=str, help='Output CSV file name')
