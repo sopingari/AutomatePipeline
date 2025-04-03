@@ -213,7 +213,10 @@ def run_pipeline(cc3d = True, PIFF = False):
     
     #Parameter for scale factor
     dx = float(params["Scale_Factor"])
-
+    
+    #Parameter for number of maximum iterations for optimization
+    optimmaxiter = int(params["optimmaxiter"])
+    
     mu_body_number = mu_body_number_start
     while mu_body_number <= mu_body_number_end:
         sigma_body_number = sigma_body_number_start
@@ -237,6 +240,7 @@ def run_pipeline(cc3d = True, PIFF = False):
                             wall_radius_mu=wall_radius_mu,
                             wall_radius_sigma=wall_radius_sigma,
                             dx=dx,
+                            optimmaxiter=optimmaxiter,
                             PIFF = PIFF
                             
                         )
@@ -258,7 +262,8 @@ def run_pipeline(cc3d = True, PIFF = False):
     print("--- Pipeline execution complete ---")
 
 
-def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, wall_radius_mu, wall_radius_sigma, dx, PIFF):
+def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, 
+                    wall_radius_mu, wall_radius_sigma, dx, optimmaxiter, PIFF):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -276,6 +281,7 @@ def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, m
         "--mu_body_number", str(mu_body_number),
         "--sigma_body_number", str(sigma_body_number),
         "--dx", str(dx),
+        "--optimmaxiter", str(optimmaxiter),
         "--PIFF", str(PIFF)
         
     ]
