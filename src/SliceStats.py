@@ -10,8 +10,6 @@ from tkinter.filedialog import askopenfilename
 import numpy as np
 import pandas as pd
 from skimage import measure 
-import glob
-import matplotlib.pyplot as plt
 
 ############################################################################################################
 #   Eastern Michigan University
@@ -175,11 +173,6 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     else:    
         overalldfsk_new = split_duplicates(overalldfsk, recogLimit)
         to_nm(overalldfsk_new, scaleFactor, initialTime)
-    
-    # --- Visualization section ---
-    # Compute slice parameters (min_y, min_z, image dimensions) from the lineCollection
-    min_y, min_z, y_size, z_size = compute_slice_params(lineCollection)
-    visualize_slice(lineCollection, min_y, min_z, y_size, z_size)
 
 def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor): 
     '''Sorts the pixels within the PIFF file into wallText and bodyText.
@@ -417,87 +410,6 @@ def load_parameters_from_file(file_path):
     except Exception as e:
         print(f"Error reading parameters file: {e}")
         return None
-
-# --- New helper functions for visualization ---
-
-def compute_slice_params(lineCollection):
-    '''Compute the min_y, min_z and image dimensions from the slice data.'''
-    min_y = float('inf')
-    max_y = float('-inf')
-    min_z = float('inf')
-    max_z = float('-inf')
-    for array in lineCollection:
-        for line in array:
-            lineData = line.split()
-            y1, y2 = float(lineData[4]), float(lineData[5])
-            z1, z2 = float(lineData[6]), float(lineData[7])
-            min_y = min(min_y, y1, y2)
-            max_y = max(max_y, y1, y2)
-            min_z = min(min_z, z1, z2)
-            max_z = max(max_z, z1, z2)
-    y_size = int(max_y - min_y + 3)
-    z_size = int(max_z - min_z + 3)
-    return min_y, min_z, y_size, z_size
-    
-import matplotlib.pyplot as plt
-import numpy as np
-import matplotlib as mpl
-
-def visualize_slice(lineCollection, min_y, min_z, y_size, z_size):
-    """
-    Creates a composite 2D image of the slice where each pixel is assigned the actual
-    Body ID. It then uses a discrete colormap to display each body in a different color.
-    A colorbar and labels at each body's centroid are added to help viewers understand the image.
-    """
-    # Build the labeled slice image (each pixel = the actual Body ID)
-    slice_img = np.zeros((y_size, z_size), dtype=np.int32)
-    for body in lineCollection:
-        for line in body:
-            data = line.split()
-            bodyID = int(data[0])  # actual Body ID from the PIFF file
-            y = int(float(data[4]) - min_y + 1)
-            z = int(float(data[6]) - min_z + 1)
-            slice_img[y, z] = bodyID
-
-    # Determine the maximum Body ID to set the color scale
-    max_id = slice_img.max()
-    if max_id <= 0:
-        print("No bodies found in the slice.")
-        return
-
-    # Create a discrete colormap that provides a unique color for each body ID
-    norm = mpl.colors.Normalize(vmin=0, vmax=max_id)
-    cmap = plt.cm.get_cmap('nipy_spectral', max_id + 1)
-
-    # Display the image using the colormap
-    plt.figure(figsize=(8, 8))
-    plt.imshow(slice_img, cmap=cmap, norm=norm, origin='lower')
-    plt.title("2D Slice Visualization with Different Colors for Each Body")
-    plt.xlabel("Z axis (pixels)")
-    plt.ylabel("Y axis (pixels)")
-
-    # Add a colorbar with discrete ticks showing each Body ID
-    cbar = plt.colorbar(ticks=range(0, max_id + 1))
-    cbar.set_label("Body ID")
-
-    # Label each distinct Body ID at its centroid for clarity
-    unique_ids = np.unique(slice_img)
-    for val in unique_ids:
-        if val == 0:
-            continue  # Skip background
-        coords = np.where(slice_img == val)
-        if coords[0].size == 0:
-            continue
-        y_mean = coords[0].mean()
-        z_mean = coords[1].mean()
-        plt.text(z_mean, y_mean, str(val),
-                 color='black', fontsize=8, ha='center', va='center',
-                 bbox=dict(facecolor='white', alpha=0.6, boxstyle='round'))
-
-    plt.show()
-
-
-
-
+        
 if __name__ == "__main__":
     main(fileSelectOpt=True, MassRunCheck=True, inputPiff="src/output.piff")
