@@ -12,64 +12,6 @@ from visualization import plot_vacuole_spheres
 import logging
 import subprocess
 import time
-
-
-def load_cc3d_output(filepath):
-    """
-    Loads a CompuCell3D PIFF file and converts it into a DataFrame
-    with columns:
-      - 'cell_id'
-      - 'bodyType'
-      - 'x', 'y', 'z' (the midpoint of each bounding box)
-      - 'r' (the radius, computed as half the bounding box size in that dimension)
-    """
-    data = []
-    with open(filepath, 'r') as f:
-        for line in f:
-            parts = line.strip().split()
-            if len(parts) < 7:
-                continue
-
-            cell_id = int(parts[0])
-            cell_type = parts[1]
-
-            # Parse bounding box coords
-            x_min = int(parts[2])
-            x_max = int(parts[3])
-            y_min = int(parts[4])
-            y_max = int(parts[5])
-            z_min = int(parts[6])
-            z_max = int(parts[7])
-
-            # Compute center as the midpoint
-            x_center = (x_min + x_max) / 2
-            y_center = (y_min + y_max) / 2
-            z_center = (z_min + z_max) / 2
-
-            # Compute radius along each axis
-            r_x = (x_max - x_min) / 2
-            r_y = (y_max - y_min) / 2
-            r_z = (z_max - z_min) / 2
-
-            # Overall radius is the largest of the three
-            r = max(r_x, r_y, r_z)
-
-            # If the bounding box is effectively zero, force a small radius (e.g., 0.5)
-            if r == 0:
-                r = 0.5
-
-            # Add to our list
-            data.append({
-                'cell_id': cell_id,
-                'bodyType': cell_type,
-                'x': x_center,
-                'y': y_center,
-                'z': z_center,
-                'r': r
-            })
-
-    # Convert the list of dicts to a DataFrame
-    return pd.DataFrame(data)
     
 def main():
     print("Welcome to the Autophagic Vacuole Simulation (AVS) Project")
@@ -250,9 +192,6 @@ def run_pipeline(cc3d = True, PIFF = False):
                             run_cc3d_script()
                             
                         df_cc3d = load_cc3d_output("./Output/10_24Simulation000.piff")
-                        plot_vacuole_spheres(df_cc3d, show_inner=True, save_path="after_cc3d.png", scale_factor=10)
-
-                        logging.info("Post-CompuCell3D visualization complete.")
 
                     sigma_body_size += sigma_body_size_step
                 mu_body_size += mu_body_size_step
