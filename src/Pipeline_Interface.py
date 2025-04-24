@@ -8,7 +8,6 @@ import stat
 import numpy as np
 import csv
 import pandas as pd
-from visualization import plot_vacuole_spheres
 import logging
 import subprocess
 import time
@@ -190,8 +189,6 @@ def run_pipeline(cc3d = True, PIFF = False):
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
                             run_cc3d_script()
-                            
-                        df_cc3d = load_cc3d_output("./Output/10_24Simulation000.piff")
 
                     sigma_body_size += sigma_body_size_step
                 mu_body_size += mu_body_size_step

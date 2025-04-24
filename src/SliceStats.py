@@ -39,7 +39,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
 
     if MassRunCheck:
         # Directly use the expected PIFF file from CC3D
-        inputName = "./Output/10_24Simulation500.piff"
+        inputName = "./Output/10_24Simulation000.piff"
         print(f"Running SliceStats.py with: {inputName}")
         # Ensure the file exists before proceeding
         while not os.path.exists(inputName):
