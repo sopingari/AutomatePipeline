@@ -690,10 +690,7 @@ def main(args):
         optimmaxiter=args.optimmaxiter,
         maxVacuoleIterations=100
     )
-
-    plot_vacuole_spheres(df, show_inner=True, save_path="my_plot.png")
-
-
+  
     # Log statistics
     log_statistics(args, df)
     
@@ -1035,121 +1032,6 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
         logging.error(f"Error writing completely combined vacuole data CSV file")
         raise
 
-
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
-
-def plot_vacuole_spheres(df, show_inner=False, save_path=None):
-    """
-    Plot spheres (APBs) inside a vacuole using data from a DataFrame
-    with columns at least:
-      - 'bodyType': "APB" or "Vacuole"
-      - 'rInner', 'rOuter' (for the vacuole row)
-      - 'x', 'y', 'z', 'r' (for each APB and the vacuole)
-    
-    Parameters:
-    -----------
-    df : pandas.DataFrame
-        DataFrame containing the simulation results:
-        - One row where 'bodyType' == 'Vacuole' with columns 'rInner', 'rOuter', 'x', 'y', 'z'.
-        - Multiple rows where 'bodyType' == 'APB' with columns 'r', 'x', 'y', 'z'.
-    show_inner : bool, optional
-        If True, also draws the vacuole's inner boundary as a wireframe.
-    save_path : str, optional
-        If provided, saves the figure to this file path (e.g., 'vacuole_plot.png').
-        Otherwise, shows the figure interactively.
-    """
-
-    # --- Helper function to draw a sphere/wireframe
-    def draw_sphere(ax, center, radius, color='blue', alpha=0.2, wireframe=False):
-        # Parametric angles
-        u = np.linspace(0, 2*np.pi, 30)
-        v = np.linspace(0, np.pi, 30)
-        # Mesh for sphere
-        x = center[0] + radius * np.outer(np.cos(u), np.sin(v))
-        y = center[1] + radius * np.outer(np.sin(u), np.sin(v))
-        z = center[2] + radius * np.outer(np.ones(u.size), np.cos(v))
-        
-        if wireframe:
-            ax.plot_wireframe(x, y, z, color=color, alpha=alpha, linewidth=0.5)
-        else:
-            ax.plot_surface(x, y, z, color=color, alpha=alpha, linewidth=0)
-
-    # --- Create the 3D figure
-    fig = plt.figure(figsize=(10, 8))
-    ax = fig.add_subplot(111, projection='3d')
-
-    # --- Separate vacuole and APBs from df
-    vacuole = df.loc[df['bodyType'] == 'Vacuole'].iloc[0]
-    apbs = df.loc[df['bodyType'] == 'APB']
-
-    # --- Plot the vacuole's outer boundary as a translucent surface
-    draw_sphere(ax,
-                center=(vacuole['x'], vacuole['y'], vacuole['z']),
-                radius=vacuole['rOuter'],
-                color='skyblue',
-                alpha=0.2,
-                wireframe=False)
-
-    # --- Optionally, plot the vacuole's inner boundary as a wireframe
-    if show_inner and 'rInner' in vacuole:
-        draw_sphere(ax,
-                    center=(vacuole['x'], vacuole['y'], vacuole['z']),
-                    radius=vacuole['rInner'],
-                    color='blue',
-                    alpha=0.3,
-                    wireframe=True)
-
-    # --- Plot all APBs as solid red spheres
-    for _, row in apbs.iterrows():
-        draw_sphere(ax,
-                    center=(row['x'], row['y'], row['z']),
-                    radius=row['r'],
-                    color='red',
-                    alpha=0.8,
-                    wireframe=False)
-
-    # --- Make the axes look nice and symmetric
-    # Gather all coordinate extents to set uniform axes
-    coords = []
-    # APBs extents
-    coords.extend([apbs['x'].min(), apbs['y'].min(), apbs['z'].min(),
-                   apbs['x'].max(), apbs['y'].max(), apbs['z'].max()])
-    # Vacuole extents (outer boundary)
-    coords.extend([
-        vacuole['x'] - vacuole['rOuter'], vacuole['x'] + vacuole['rOuter'],
-        vacuole['y'] - vacuole['rOuter'], vacuole['y'] + vacuole['rOuter'],
-        vacuole['z'] - vacuole['rOuter'], vacuole['z'] + vacuole['rOuter']
-    ])
-
-    # Compute min & max for uniform scaling
-    min_val, max_val = np.nanmin(coords), np.nanmax(coords)
-    # Expand slightly so we don't cut off surfaces
-    margin = 0.05 * (max_val - min_val)
-    min_val -= margin
-    max_val += margin
-
-    ax.set_xlim(min_val, max_val)
-    ax.set_ylim(min_val, max_val)
-    ax.set_zlim(min_val, max_val)
-    ax.set_box_aspect((1, 1, 1))  # Force cubic aspect ratio
-
-    # --- Labeling
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_title('Result of vacuole_gen.py')
-
-    # --- Save or show
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Saved figure to {save_path}")
-        plt.close(fig)
-    else:
-        plt.show()
-
-    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate PIFF file with N randomly clustered spheroids inside a surrounding hollow Wall.')
