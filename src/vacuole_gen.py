@@ -407,10 +407,11 @@ def generate_piff_file(df, dx, filename='output.piff'):
     spheroids = df[df['bodyType'] == 'APB']
 
     # Generate boxes for spheroids (Body cells)
+    # dx is the scale factor, in nm per voxel.  Dividing by dx converts nm to voxels.  
     for index, spheroid in spheroids.iterrows():
-        x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx
-        R = spheroid['r'] / dx
-        # Define bounding box
+        x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx   #Center of spheriod in voxels 
+        R = spheroid['r'] / dx  #R = radius of spheroid in voxels 
+        # Define bounding box (in voxels) 
         x_min = x0 - R
         x_max = x0 + R
         y_min = y0 - R
@@ -427,35 +428,35 @@ def generate_piff_file(df, dx, filename='output.piff'):
         z_max = float(z_max.item()) if isinstance(z_max, np.ndarray) else float(z_max)
         dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
 
-        # Generate values using np.arange
-        x_vals = np.arange(x_min, x_max, dx)
-        y_vals = np.arange(y_min, y_max, dx)
-        z_vals = np.arange(z_min, z_max, dx)      
+        # Generate values using np.arange.  All values in voxels.  
+        x_vals = np.arange(x_min, x_max, 1)
+        y_vals = np.arange(y_min, y_max, 1)
+        z_vals = np.arange(z_min, z_max, 1)      
 
         for x in x_vals:
             for y in y_vals:
                 for z in z_vals:
                     # Calculate center of the voxel
-                    voxel_center = (x + dx / 2, y + dx / 2, z + dx / 2)
+                    voxel_center = (x + 0.5, y + 0.5, z + 0.5)
                     distance_sq = ((voxel_center[0] - x0) ** 2 +
                                    (voxel_center[1] - y0) ** 2 +
                                    (voxel_center[2] - z0) ** 2)
                     if distance_sq <= R ** 2:
-                        line = f"{cell_id} Body {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
+                        line = f"{cell_id} Body {int(x)} {int(x)} {int(y)} {int(y)} {int(z)} {int(z)}"
                         piff_lines.append(line)
                         
                         # Track the maximum voxel value
-                        max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+                        max_voxel_value = max(max_voxel_value, x, y, z)
                         
         cell_id += 1  # Increment CellID for the next spheroid
 
     # Generate boxes for the vacuole (Wall)
     wall_cell_id = cell_id  # Assign a unique CellID for the wall
     
-    # Scale physical coordinates and radii down to grid units
-    x0, y0, z0 = vacuole['x'] / dx, vacuole['y'] / dx, vacuole['z'] / dx
+    # Scale physical coordinates (nm) and radii down to grid units (voxels).
+    x0, y0, z0 = vacuole['x'] / dx, vacuole['y'] / dx, vacuole['z'] / dx   #Center of the vacuol in voxels
     R_outer = vacuole['rOuter'] / dx
-    R_inner = vacuole['rInner'] / dx# aross15
+    R_inner = vacuole['rInner'] / dx #There is both an outer and inner because the vacuole is a hollow sphere.  In voxels.  
 
     # Define bounding box for the wall
     x_min = x0 - R_outer
@@ -475,24 +476,24 @@ def generate_piff_file(df, dx, filename='output.piff'):
     dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
 
     # Generate the grid points for voxel placement, the dx step size ensures that the grid points are spaced correctly
-    x_vals = np.arange(x_min, x_max, dx)
-    y_vals = np.arange(y_min, y_max, dx)
-    z_vals = np.arange(z_min, z_max, dx)
+    x_vals = np.arange(x_min, x_max, 1)
+    y_vals = np.arange(y_min, y_max, 1)
+    z_vals = np.arange(z_min, z_max, 1)
 
     for x in x_vals:
         for y in y_vals:
             for z in z_vals:
                 # Calculate center of the voxel
-                voxel_center = (x + dx / 2, y + dx / 2, z + dx / 2)
+                voxel_center = (x + 0.5, y + 0.5, z + 0.5)
                 distance_sq = ((voxel_center[0] - x0) ** 2 +
                                (voxel_center[1] - y0) ** 2 +
                                (voxel_center[2] - z0) ** 2)
                 if R_inner ** 2 <= distance_sq <= R_outer ** 2:
-                    line = f"{wall_cell_id} Wall {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
+                    line = f"{wall_cell_id} Wall {int(x)} {int(x)} {int(y)} {int(y)} {int(z)} {int(z)}"
                     piff_lines.append(line)
 
                     # Track the maximum voxel value
-                    max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+                    max_voxel_value = max(max_voxel_value, x, y, z)
                     
     # Write the PIFF content to a file
     with open(filename, 'w') as f:
@@ -505,6 +506,8 @@ def generate_piff_file(df, dx, filename='output.piff'):
 
     xml_file_path = './CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'
     update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
+    
+    #return piff_lines
 
 def visualize_spheroids_and_wall(spheroids, wall_center, wall_outer_radius, wall_thickness, x_max, y_max, z_max):
     """
