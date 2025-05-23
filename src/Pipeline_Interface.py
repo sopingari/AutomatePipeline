@@ -97,10 +97,11 @@ def run_pipeline(cc3d = True, PIFF = False):
                 'Seed', 
                 'Grid_Resolution_(dx)', 
                 'Body_Radius_Mu', 
-                'Body_Radius_Sigma', 
+                'Body_Radius_Sigma',
+                'p-norm value', 
                 'Average_Body_Radius', 
-                'Largest_Body_Radius',
                 'Standard_Deviation_Body_Radius',
+                'Largest_Body_Radius',
                 'Average_Distance_from_Origin',
                 'Body_Number_Mu',
                 'Body_Number_Sigma',  
@@ -109,6 +110,9 @@ def run_pipeline(cc3d = True, PIFF = False):
                 'Success_Rate_(%)', 
                 'Iterations', 
                 'Optimization_Max_Iterations', 
+                'Starting_Objective_Function',
+                'Ending_Objective_Function',
+                'Optimization_Factor',
                 'Wall_Radius_Mu', 
                 'Wall_Radius_Sigma', 
                 'Vacuole_Inner_Radius', 
@@ -151,6 +155,7 @@ def run_pipeline(cc3d = True, PIFF = False):
     sigma_body_size_start = float(params["Body_radius_starting_sigma"])
     sigma_body_size_end = float(params["Body_radius_ending_sigma"])
     sigma_body_size_step = float(params["Body_radius_sigma_step"])
+    pvals = float(params["pvals"])
     
     #Parameter for scale factor
     dx = float(params["Scale_Factor"])
@@ -178,11 +183,12 @@ def run_pipeline(cc3d = True, PIFF = False):
                             sigma_body_number=sigma_body_number,
                             mu_body_size=mu_body_size,
                             sigma_body_size=sigma_body_size,
+                            pvals=pvals,
                             wall_radius_mu=wall_radius_mu,
                             wall_radius_sigma=wall_radius_sigma,
                             dx=dx,
                             optimmaxiter=optimmaxiter,
-                            PIFF = PIFF
+                            PIFF=PIFF
                             
                         )
 
@@ -198,7 +204,7 @@ def run_pipeline(cc3d = True, PIFF = False):
     print("--- Pipeline execution complete ---")
 
 
-def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, 
+def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, pvals, 
                     wall_radius_mu, wall_radius_sigma, dx, optimmaxiter, PIFF):
     """
     Run vacuole_gen.py with specified parameters.
@@ -212,6 +218,7 @@ def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, m
         "--N", str(N_spheroids),
         "--mu", str(mu_body_size),
         "--sigma", str(sigma_body_size),
+        "--pvals", str(pvals),
         "--wall_radius_mu", str(wall_radius_mu),
         "--wall_radius_sigma", str(wall_radius_sigma),
         "--mu_body_number", str(mu_body_number),
