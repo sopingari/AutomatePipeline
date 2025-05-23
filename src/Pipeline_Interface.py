@@ -113,6 +113,7 @@ def run_pipeline(cc3d = True, PIFF = False):
                 'Starting_Objective_Function',
                 'Ending_Objective_Function',
                 'Optimization_Factor',
+                'Compactness',
                 'Wall_Radius_Mu', 
                 'Wall_Radius_Sigma', 
                 'Vacuole_Inner_Radius', 

@@ -202,7 +202,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   r = np.exp(r_normals) # turn the normals into log-normals
 
   if plist is None:
-    plist = [args.pvals]*bodies # repeats 2.0 as many times as is specified.
+    plist = [args.pvals]*bodies # repeats pvals (the p-norm value) as many times as is specified.
   elif len(plist)==1:
     plist = plist*bodies
 
@@ -258,6 +258,16 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   if optimmaxiter > 0: # since if maxiter==0, then don't do the optimization!
     optim_method='trust-constr' # interior-point method
     myoptions={'maxiter':optimmaxiter}
+    
+    # calculate compactness (distance from every body to every other body) of the starting bodies
+    #print(pos_array)
+    body_starting_distances = 0
+    for body1 in pos_array:
+      for body2 in pos_array:
+        body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
+        body_starting_distances += body_distance
+    print ("body_starting_distances = ", body_starting_distances)
+    
     optim_df = df
     x0 = np.ravel(pos_array) # turn into a 1-dimensional array, since that's what minimize works with.
     cons= ({'type': 'ineq', 'args': (optim_df,), 'fun': inter_APB_boundary_distances})
@@ -272,6 +282,19 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     pos_array_safe = pos_array.copy()
     pos_array_as_vec = res['x']
     pos_array = np.reshape(pos_array_as_vec,(len(optim_df),-1))
+    
+    # calculate compactness (distance from every body to every other body) of the ending bodies
+    #print(pos_array)
+    body_ending_distances = 0
+    for body1 in pos_array:
+      for body2 in pos_array:
+        body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
+        body_ending_distances += body_distance
+    print ("body_ending_distances = ", body_ending_distances)
+    compactness = (body_starting_distances / body_ending_distances)-1   #0 if no compaction, positive if compacted
+    print ("compactness = ", compactness)
+    
+    #
     ofv_final = total_dist_to_pt(pos_array_as_vec,optim_df)
     print("ofv_final:",ofv_final)
     #Done with optimization step
@@ -333,7 +356,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   # add the resulting columns to the main dataframe:
   df = pd.concat([df.reset_index(drop=True), dfpos], axis=1)
 
-  return(df,pos_array,r_and_pos_array,dirmat_safe,iterCount, ofv_original, ofv_final)
+  return(df,pos_array,r_and_pos_array,dirmat_safe,iterCount, ofv_original, ofv_final, compactness)
 
 
 def log_statistics(args, df):
@@ -685,7 +708,7 @@ def main(args):
     PIFF = args.PIFF
 
     # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe, iterCount, ofv_original, ofv_final = genBalls3(
+    df, pos_array, r_and_pos_array, dirmat_safe, iterCount, ofv_original, ofv_final, compactness = genBalls3(
         bodies=N_SPHEROIDS,
         wall_Radius_Mu=WALL_RADIUS_MU,
         wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
@@ -707,7 +730,7 @@ def main(args):
     
     # Write the combined CSVs directly to the run folder
     write_body_size_combined_csv(run_folder, run_id, args, df)
-    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final)
+    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
     
     # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
     if PIFF == 1 or PIFF == 2:
@@ -940,7 +963,7 @@ def write_body_size_combined_csv(runs_dir, run_id, args, df):
         logging.error(f"Error writing completely combined body size CSV file")
         raise
 
-def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, ofv_final):
+def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, ofv_final, compactness):
     """
     Write a single CSV file for all of the runs containing information on the vacuole size and body number.  Puts it in the "runs" folder.  
     """
@@ -966,7 +989,7 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
     if (ofv_original) == 'No optimization':
       optim_factor = 'No optimization'  
     else:
-      optim_factor = ofv_original/ofv_final
+      optim_factor = (ofv_original/ofv_final) - 1
     
             
     # Create combined output file in the runs directory for all runs
@@ -1000,6 +1023,7 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
                 ofv_original,        #ofv before clustering  
                 ofv_final,           #ofv after clustering (should be less)  
                 optim_factor,
+                compactness,
                 args.wall_radius_mu,
                 args.wall_radius_sigma,
                 float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner']),
