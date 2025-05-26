@@ -158,8 +158,9 @@ def run_pipeline(cc3d = True, PIFF = False):
     sigma_body_size_step = float(params["Body_radius_sigma_step"])
     pvals = float(params["pvals"])
     
-    #Parameter for scale factor
-    dx = float(params["Scale_Factor"])
+    #Parameters for PIFF file generation
+    dx = float(params["Scale_Factor"])  #nm per voxel
+    show_wall = str(params["Show_Wall"])
     
     #Parameter for number of maximum iterations for optimization
     optimmaxiter = int(params["optimmaxiter"])
@@ -188,6 +189,7 @@ def run_pipeline(cc3d = True, PIFF = False):
                             wall_radius_mu=wall_radius_mu,
                             wall_radius_sigma=wall_radius_sigma,
                             dx=dx,
+                            show_wall=show_wall,
                             optimmaxiter=optimmaxiter,
                             PIFF=PIFF
                             
@@ -206,7 +208,7 @@ def run_pipeline(cc3d = True, PIFF = False):
 
 
 def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, pvals, 
-                    wall_radius_mu, wall_radius_sigma, dx, optimmaxiter, PIFF):
+                    wall_radius_mu, wall_radius_sigma, dx, show_wall, optimmaxiter, PIFF):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -225,6 +227,7 @@ def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, m
         "--mu_body_number", str(mu_body_number),
         "--sigma_body_number", str(sigma_body_number),
         "--dx", str(dx),
+        "--show_wall", str(show_wall),
         "--optimmaxiter", str(optimmaxiter),
         "--PIFF", str(PIFF)
         
