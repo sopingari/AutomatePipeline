@@ -1,9 +1,6 @@
 import numpy as np
 import math
 import argparse
-import numpy as np
-import math
-import argparse
 import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -19,9 +16,6 @@ import pandas as pd
 from scipy.stats import ortho_group
 from scipy.optimize import minimize
 from scipy.spatial import distance_matrix
-import csv
-from datetime import datetime
-
 
 #TAKEN FROM GENBALLS07
 
@@ -199,7 +193,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
 
   # generate body radii:
   r_normals = rng.standard_normal(bodies)*sigma+mu # one for each APB
-  r = np.exp(r_normals) # turn the normals into log-normals
+  r = np.exp(r_normals) # turn the normals into log-normals in nanometers
 
   if plist is None:
     plist = [2.0]*bodies # repeats 2.0 as many times as is specified.
@@ -372,22 +366,6 @@ def log_statistics(args, df):
     logging.info(f"Statistics: {stats}")
 
 
-
-
-#Set up logging
-def setup_logging(runs_dir, seed):
-    log_file = os.path.join(runs_dir, f'run.log')
-    logging.basicConfig(filename=log_file, level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
-
-    # Create a separate statistics file
-    stats_file = os.path.join(runs_dir, f'statistics.json')
-    
-    # Log the seed
-    logging.info(f"Random seed: {seed}")
-
-    return stats_file
-
 #genballs
 def generate_piff_file(df, dx, filename='output.piff'):
     """
@@ -509,94 +487,6 @@ def generate_piff_file(df, dx, filename='output.piff'):
     
     #return piff_lines
 
-def visualize_spheroids_and_wall(spheroids, wall_center, wall_outer_radius, wall_thickness, x_max, y_max, z_max):
-    """
-    Visualizes the spheroids and the surrounding wall in 3D.
-    
-    Parameters:
-        spheroids (list): List of spheroid dictionaries.
-        wall_center (tuple): The (x, y, z) coordinates of the wall's center.
-        wall_outer_radius (float): The outer radius of the wall.
-        wall_thickness (float): The thickness of the wall.
-        x_max (float): Maximum x-axis limit for visualization.
-        y_max (float): Maximum y-axis limit for visualization.
-        z_max (float): Maximum z-axis limit for visualization.
-    """
-    fig = plt.figure(figsize=(12, 10))
-    ax = fig.add_subplot(111, projection='3d')
-    
-    # Plot the hollow wall as two wireframes (outer and inner spheres)
-    plot_hollow_sphere(ax, wall_center, wall_outer_radius, wall_thickness, color='lightblue', alpha=0.2)
-    
-    # Plot the spheroids
-    for spheroid in spheroids:
-        plot_sphere(ax, spheroid['x'], spheroid['y'], spheroid['z'],
-                    spheroid['radius'], color='red', alpha=0.6)
-    
-    # Set plot limits
-    ax.set_xlim(0, x_max)
-    ax.set_ylim(0, y_max)
-    ax.set_zlim(0, z_max)
-    
-    # Labels
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    
-    # Equal aspect ratio
-    ax.set_box_aspect([x_max, y_max, z_max])
-    
-    plt.title('Randomly Placed and Clustered Spheroids within Surrounding Wall')
-    plt.show()
-
-def plot_sphere(ax, x_center, y_center, z_center, radius, color='r', alpha=0.6):
-    """
-    Plots a single sphere.
-    
-    Parameters:
-        ax (Axes3D): The 3D axes to plot on.
-        x_center (float): X-coordinate of the sphere's center.
-        y_center (float): Y-coordinate of the sphere's center.
-        z_center (float): Z-coordinate of the sphere's center.
-        radius (float): Radius of the sphere.
-        color (str): Color of the sphere.
-        alpha (float): Transparency of the sphere.
-    """
-    u = np.linspace(0, 2 * np.pi, 30)
-    v = np.linspace(0, np.pi, 30)
-    x = x_center + radius * np.outer(np.cos(u), np.sin(v))
-    y = y_center + radius * np.outer(np.sin(u), np.sin(v))
-    z = z_center + radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_surface(x, y, z, color=color, alpha=alpha, linewidth=0, shade=True)
-
-def plot_hollow_sphere(ax, center, outer_radius, wall_thickness, color='lightblue', alpha=0.2):
-    """
-    Plots a hollow sphere (wall) using wireframes for outer and inner boundaries.
-    
-    Parameters:
-        ax (Axes3D): The 3D axes to plot on.
-        center (tuple): The (x, y, z) coordinates of the wall's center.
-        outer_radius (float): The outer radius of the wall.
-        wall_thickness (float): The thickness of the wall.
-        color (str): Color of the wall wireframes.
-        alpha (float): Transparency of the wireframes.
-    """
-    inner_radius = outer_radius - wall_thickness
-    u = np.linspace(0, 2 * np.pi, 30)
-    v = np.linspace(0, np.pi, 30)
-    
-    # Outer sphere
-    x_outer = center[0] + outer_radius * np.outer(np.cos(u), np.sin(v))
-    y_outer = center[1] + outer_radius * np.outer(np.sin(u), np.sin(v))
-    z_outer = center[2] + outer_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_wireframe(x_outer, y_outer, z_outer, color=color, alpha=alpha, linewidth=0.5)
-    
-    # Inner sphere
-    x_inner = center[0] + inner_radius * np.outer(np.cos(u), np.sin(v))
-    y_inner = center[1] + inner_radius * np.outer(np.sin(u), np.sin(v))
-    z_inner = center[2] + inner_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_wireframe(x_inner, y_inner, z_inner, color=color, alpha=alpha, linewidth=0.5)
-    
 def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
     # Parse the XML file
     tree = ET.parse(xml_file_path)
@@ -613,117 +503,6 @@ def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
     # Save the changes back to the XML file
     tree.write(xml_file_path)
     
-def load_parameters_from_file(file_path):
-    """
-    Reads parameters from a specified file and returns them as a dictionary.
-
-    Parameters:
-        file_path (str): Path to the file containing parameters.
-
-    Returns:
-        dict: Dictionary with parameter names as keys and their values.
-    """
-    try:
-        parameters = {}
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Remove comments and trim whitespace
-                line = line.split('#')[0].strip()
-                
-                # Skip empty lines
-                if not line:
-                    continue
-                
-                # Split on the first '=' only
-                parts = line.split('=', 1)
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].strip().strip('"')  # Remove quotes if present
-                    parameters[key] = value
-        
-        return parameters
-    except Exception as e:
-        print(f"Error reading parameters file: {e}")
-        return None
-
-def main(args):
-
-    # Generate a unique run ID based on the current date and time
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    run_folder = args.run_folder
-
-    # Setup logging and get stats file path
-    stats_file = setup_logging(run_folder, args.seed)
-
-    if args.seed is None:
-        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    rng = np.random.default_rng(args.seed)
-
-    logging.info(f"Starting new run with ID: {run_id}")
-    logging.info(f"Arguments: {args}")
-
-    # Extract parameters from arguments
-    N_SPHEROIDS = args.N
-    BODY_MU = args.mu
-    BODY_SIGMA = args.sigma
-    WALL_RADIUS_MU = args.wall_radius_mu
-    WALL_RADIUS_SIGMA = args.wall_radius_sigma
-    DX = args.dx
-    MAX_TRIES = args.max_tries
-    filename = args.output
-    PIFF = args.PIFF
-
-    # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe, iterCount = genBalls3(
-        bodies=N_SPHEROIDS,
-        wall_Radius_Mu=WALL_RADIUS_MU,
-        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
-        mu = BODY_MU,
-        sigma = BODY_SIGMA,
-        iterations=args.iterations,
-        ndim=3,
-        rng=rng,
-        method='hcp',
-        plist=None,
-        pcterrcap=10.0,
-        posOctant=True,
-        optimmaxiter=args.optimmaxiter,
-        maxVacuoleIterations=100
-    )
-  
-    # Log statistics
-    log_statistics(args, df)
-    
-    # Write the combined CSVs directly to the run folder
-    write_body_size_combined_csv(run_folder, run_id, args, df)
-    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount)
-    
-    # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
-    if PIFF == 1 or PIFF == 2:
-        generate_piff_file(df, dx=args.dx, filename=filename)
-
-        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
-        if os.path.exists(cc3d):
-            shutil.copy(filename, os.path.join(cc3d, filename))
-            logging.info(f"Copied PIFF file to CC3D simulation folder")
-        
-   
-    #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
-    # Also add statistics for that run as a csv to that folder.  
-    if PIFF == 2:
-        run_subfolder = os.path.join(run_folder, run_id)
-        os.makedirs(run_subfolder)
-        piff_copy_path = os.path.join(run_subfolder, filename)
-        shutil.copy(filename, piff_copy_path)
-        logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
-        write_combined_csv(run_subfolder, run_id, args, df)
-
-    logging.info(f"Run {run_id} completed successfully.")
-
-
 def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius=8.0):
     """
     Calculate additional metrics for a single spheroid.
@@ -1034,6 +813,81 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount):
     except Exception as e:
         logging.error(f"Error writing completely combined vacuole data CSV file")
         raise
+
+def main(args):
+
+    # Generate a unique run ID based on the current date and time
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    run_folder = args.run_folder
+
+    if args.seed is None:
+        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    rng = np.random.default_rng(args.seed)
+
+    logging.info(f"Starting new run with ID: {run_id}")
+    logging.info(f"Arguments: {args}")
+
+    # Extract parameters from arguments
+    N_SPHEROIDS = args.N
+    BODY_MU = args.mu
+    BODY_SIGMA = args.sigma
+    WALL_RADIUS_MU = args.wall_radius_mu
+    WALL_RADIUS_SIGMA = args.wall_radius_sigma
+    DX = args.dx
+    MAX_TRIES = args.max_tries
+    filename = args.output
+    PIFF = args.PIFF
+
+    # Generate spheroids using genBalls3
+    df, pos_array, r_and_pos_array, dirmat_safe, iterCount = genBalls3(
+        bodies=N_SPHEROIDS,
+        wall_Radius_Mu=WALL_RADIUS_MU,
+        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
+        mu = BODY_MU,
+        sigma = BODY_SIGMA,
+        iterations=args.iterations,
+        ndim=3,
+        rng=rng,
+        method='hcp',
+        plist=None,
+        pcterrcap=10.0,
+        posOctant=True,
+        optimmaxiter=args.optimmaxiter,
+        maxVacuoleIterations=100
+    )
+  
+    # Log statistics
+    log_statistics(args, df)
+    
+    # Write the combined CSVs directly to the run folder
+    write_body_size_combined_csv(run_folder, run_id, args, df)
+    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount)
+    
+    # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
+    if PIFF == 1 or PIFF == 2:
+        generate_piff_file(df, dx=args.dx, filename=filename)
+
+        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
+        if os.path.exists(cc3d):
+            shutil.copy(filename, os.path.join(cc3d, filename))
+            logging.info(f"Copied PIFF file to CC3D simulation folder")
+        
+   
+    #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
+    # Also add statistics for that run as a csv to that folder.  
+    if PIFF == 2:
+        run_subfolder = os.path.join(run_folder, run_id)
+        os.makedirs(run_subfolder)
+        piff_copy_path = os.path.join(run_subfolder, filename)
+        shutil.copy(filename, piff_copy_path)
+        logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
+        write_combined_csv(run_subfolder, run_id, args, df)
+
+    logging.info(f"Run {run_id} completed successfully.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

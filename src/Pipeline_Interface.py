@@ -9,8 +9,7 @@ import numpy as np
 import csv
 import pandas as pd
 import logging
-import subprocess
-import time
+
     
 def main():
     print("Welcome to the Autophagic Vacuole Simulation (AVS) Project")
@@ -129,6 +128,20 @@ def run_pipeline(cc3d = True, PIFF = False):
     params = load_model_parameters("./attributes/Model_Parameters.txt")
     if not params:
         raise ValueError("Failed to load parameters from Model_Parameters.txt.")
+
+
+    # Validate loop parameters to prevent infinite loops 
+    assert float(params["Body_number_mu_step"]) > 0, "Body_number_mu_step must be > 0"
+    assert float(params["Body_number_ending_mu"]) >= float(params["Body_number_starting_mu"]), "Body_number_ending_mu must be >= than Body_number_starting_mu."
+
+    assert float(params["Body_number_sigma_step"]) > 0, "Body_number_sigma_step must be > 0"
+    assert float(params["Body_number_ending_sigma"]) >= float(params["Body_number_starting_sigma"]), "Body_number_ending_sigma must be >= than Body_number_starting_sigma."
+
+    assert float(params["Body_radius_mu_step"]) > 0, "Body_radius_mu_step must be > 0"
+    assert float(params["Body_radius_ending_mu"]) >= float(params["Body_radius_starting_mu"]), "Body_radius_ending_mu must be >= than Body_radius_starting_mu."
+
+    assert float(params["Body_radius_sigma_step"]) > 0, "Body_radius_sigma_step must be > 0"
+    assert float(params["Body_radius_ending_sigma"]) >= float(params["Body_radius_starting_sigma"]), "Body_radius_ending_sigma must be >= than Body_radius_starting_sigma."
 
     sample_size = int(params["Sample_Size"])
     
