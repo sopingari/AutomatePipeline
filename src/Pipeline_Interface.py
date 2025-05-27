@@ -64,6 +64,14 @@ def load_model_parameters(file_path="Model_Parameters.txt"):
     
     return params
 
+def get_list_to_iterate_over(start, end, step,endpoint=True):
+  n = (end - start) / step
+  if endpoint:
+    n += 1
+  if abs(n-round(n)) > 0.01:
+    print(f"Strange step size: start={start} end={end} step={step} n={n}")
+  return np.linspace(start, end, num=int(round(n)), endpoint=endpoint, dtype=float).tolist()
+
 
 def run_pipeline(cc3d = True, PIFF = False):
     """
@@ -171,18 +179,24 @@ def run_pipeline(cc3d = True, PIFF = False):
     #Parameter for number of maximum iterations for optimization
     optimmaxiter = int(params["optimmaxiter"])
     
-    mu_body_number = mu_body_number_start
-    while mu_body_number <= mu_body_number_end:
-        sigma_body_number = sigma_body_number_start
-        while sigma_body_number <= sigma_body_number_end:
-            mu_body_size = mu_body_size_start
-            while mu_body_size <= mu_body_size_end:
-                sigma_body_size = sigma_body_size_start
-                while sigma_body_size <= sigma_body_size_end:
+    # Generate lists of values to iterate over
+    mu_body_number_list = get_list_to_iterate_over(mu_body_number_start, mu_body_number_end, mu_body_number_step)
+    sigma_body_number_list = get_list_to_iterate_over(sigma_body_number_start, sigma_body_number_end, sigma_body_number_step)
+    mu_body_size_list = get_list_to_iterate_over(mu_body_size_start, mu_body_size_end, mu_body_size_step)
+    sigma_body_size_list = get_list_to_iterate_over(sigma_body_size_start, sigma_body_size_end, sigma_body_size_step)
+
+    for mu_body_number in mu_body_number_list:
+        for sigma_body_number in sigma_body_number_list:
+            for mu_body_size in mu_body_size_list:
+                for sigma_body_size in sigma_body_size_list:
                     for run_idx in range(sample_size):
                         N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
-                        print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}")
-                        print(f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}, scale_factor={dx}")
+                        # Ross comment: while I understand not wanting long lines (over 80 characters),
+                        # it feels more systematic to have it all on one line of output
+                        print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}, "
+                          f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}, scale_factor={dx}")
+                        timenow = time.strftime("%c")
+                        print(f"datetime: {timenow}") # it's nice to say when we started
                         print(f"Sample {run_idx + 1}/{sample_size}")
                         vacuolegenmain(
                             run_folder = run_folder,
@@ -202,11 +216,6 @@ def run_pipeline(cc3d = True, PIFF = False):
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
                             run_cc3d_script()
-
-                    sigma_body_size += sigma_body_size_step
-                mu_body_size += mu_body_size_step
-            sigma_body_number += sigma_body_number_step
-        mu_body_number += mu_body_number_step
 
     print("--- Pipeline execution complete ---")
 
