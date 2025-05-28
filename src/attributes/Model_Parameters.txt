@@ -3,11 +3,12 @@
 # Simulation parameters
 Sample_Size = 1 #Number of virutal vacuoles generated and sliced for each combination of parameters.  Default 1000
 Scale_Factor = 8 # nm per voxel size. Larger scale factors make the simulation faster but less accurate. Used in InputAdjuster and SliceStats. Default 8.  Can also use 16 for testing
-pvals = 2  # Sphericity parameter (p-value).  Setting this to 2 will generate spheres.
+pvals = 2  # Sphericity parameter (p-value).  Setting this to 2 will generate spheres.  
+# Note that the built-in volume calculations are only accurate for pvals = 2.
 # Note - if using a pval other than 2, it is recommended that you turn off the clustering opitmization by setting optimmaxiter to 0.  
 # The optimization does not reliable lead to tighter clusering for non-spherical objects.    
-optimmaxiter = 100 # Maximum iterations for clustering optimization 
-Show_Wall = False   #If True, the vacuole wall is included in the PIFF file, leading to slower CC3D runtimes; only include if needed.   
+optimmaxiter = 10 # Maximum iterations for clustering optimization 
+Show_Wall = False  # If True, the vacuole wall is included in the PIFF file, leading to slower CC3D runtimes; use False unless needed.   
 
 #Vacuole parameters (These may vary between experiments, and can be found from the experimental data using simpler methods already published)
 #This is used to generate the inner radius of the vacuole; the outer radius will be 5% greater
