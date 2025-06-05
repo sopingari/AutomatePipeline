@@ -392,6 +392,19 @@ def log_statistics(args, df):
     # Log the statistics
     logging.info(f"Statistics: {stats}")
 
+#Set up logging
+def setup_logging(runs_dir, seed):
+    log_file = os.path.join(runs_dir, f'run.log')
+    logging.basicConfig(filename=log_file, level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
+
+    # Create a separate statistics file
+    stats_file = os.path.join(runs_dir, f'statistics.json')
+    
+    # Log the seed
+    logging.info(f"Random seed: {seed}")
+
+    return stats_file
 
 #genballs
 def generate_piff_file(df, dx, show_wall, filename='output.piff'):
