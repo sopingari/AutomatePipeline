@@ -310,20 +310,17 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     vacp = 2.0
     dists_to_origin = (np.sum(np.abs(pos_array_shifted_to_origin)**vacp,axis=1))**(1.0/vacp)
     dists_plus_rad = dists_to_origin + r
+    max_dists_plus_rad = max(dists_plus_rad)
     vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
     iterCount = 0
-    while any(dists_plus_rad > vacRadInner)and(iterCount<maxVacuoleIterations):
+    while (max_dists_plus_rad > vacRadInner) and (iterCount < maxVacuoleIterations):
         #generate new vacRadInner according to a lognormal
         r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
         vacRadInner = np.exp(r_normals) # turn the normals into log-normals
         iterCount += 1
-    if(iterCount>=maxVacuoleIterations):
+    if(iterCount >= maxVacuoleIterations):
         print("Warning: Maxed Out on Vacuole Size Iterations.")
-        print(f"Iterations:{iterCount}")
-        print(f"{dists_plus_rad}")
-        print(f"{wall_Radius_Sigma}")
-        print(f"{wall_Radius_Mu}")
-        vacRad = -9999
+        vacRadInner = max_dists_plus_rad * 1.01  # fallback: adding a 1% buffer to avoid collisions with APBs
 
     vacRadOuter = 1.05*vacRadInner
 
