@@ -11,7 +11,6 @@ import shutil
 import json
 import xml.etree.ElementTree as ET
 import csv
-from datetime import datetime
 import pandas as pd
 from scipy.stats import ortho_group
 from scipy.optimize import minimize
@@ -473,8 +472,8 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
         cell_id += 1  # Increment CellID for the next spheroid
 
     #Generate the wall, if desired
-    if show_wall == "True":
-    
+    if show_wall.lower() == "true":
+
       # Generate boxes for the vacuole (Wall)
       wall_cell_id = cell_id  # Assign a unique CellID for the wall
       
@@ -525,10 +524,10 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
         for line in piff_lines:
             f.write(line + '\n')
 
-    if show_wall == "True": 
+    if show_wall.lower() == "true": 
       print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
       logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
-    elif show_wall == "False":
+    elif show_wall.lower() == "false":
       print (f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
       logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
     print(f"Greatest voxel value found: {max_voxel_value}")
