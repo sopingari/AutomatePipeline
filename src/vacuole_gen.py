@@ -1,9 +1,6 @@
 import numpy as np
 import math
 import argparse
-import numpy as np
-import math
-import argparse
 import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -14,13 +11,10 @@ import shutil
 import json
 import xml.etree.ElementTree as ET
 import csv
-from datetime import datetime
 import pandas as pd
 from scipy.stats import ortho_group
 from scipy.optimize import minimize
 from scipy.spatial import distance_matrix
-
-
 
 #TAKEN FROM GENBALLS07
 
@@ -198,10 +192,10 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
 
   # generate body radii:
   r_normals = rng.standard_normal(bodies)*sigma+mu # one for each APB
-  r = np.exp(r_normals) # turn the normals into log-normals
+  r = np.exp(r_normals) # turn the normals into log-normals in nanometers
 
   if plist is None:
-    plist = [2.0]*bodies # repeats 2.0 as many times as is specified.
+    plist = [args.pvals]*bodies # repeats pvals (the p-norm value) as many times as is specified.
   elif len(plist)==1:
     plist = plist*bodies
 
@@ -232,7 +226,6 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     #print(df)
 
     ndir_to_try = min(iterations,dirmat.shape[0])
-    #TODO: MV, Record Somwehere - make a place to record dist_from_origin:
     pos_list = []
     dist_hist = np.inf*np.ones((ndir_to_try,))
     #print(dirmat.shape) # debugging
@@ -258,6 +251,16 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   if optimmaxiter > 0: # since if maxiter==0, then don't do the optimization!
     optim_method='trust-constr' # interior-point method
     myoptions={'maxiter':optimmaxiter}
+    
+    # calculate compactness (distance from every body to every other body) of the starting bodies
+    #print(pos_array)
+    body_starting_distances = 0
+    for body1 in pos_array:
+      for body2 in pos_array:
+        body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
+        body_starting_distances += body_distance
+    #print ("body_starting_distances = ", body_starting_distances)
+    
     optim_df = df
     x0 = np.ravel(pos_array) # turn into a 1-dimensional array, since that's what minimize works with.
     cons= ({'type': 'ineq', 'args': (optim_df,), 'fun': inter_APB_boundary_distances})
@@ -272,9 +275,27 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     pos_array_safe = pos_array.copy()
     pos_array_as_vec = res['x']
     pos_array = np.reshape(pos_array_as_vec,(len(optim_df),-1))
+    
+    # calculate compactness (distance from every body to every other body) of the ending bodies
+    #print(pos_array)
+    body_ending_distances = 0
+    for body1 in pos_array:
+      for body2 in pos_array:
+        body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
+        body_ending_distances += body_distance
+    #print ("body_ending_distances = ", body_ending_distances)
+    compactness = (body_starting_distances / body_ending_distances)-1   #0 if no compaction, positive if compacted
+    #print ("compactness = ", compactness)
+    
+    #
     ofv_final = total_dist_to_pt(pos_array_as_vec,optim_df)
     print("ofv_final:",ofv_final)
     #Done with optimization step
+    
+  else:
+    ofv_original = 'No optimization'
+    ofv_final = 'No optimization'
+    
        
   df['bodyType'] = "APB"  #MV - Dataframe Label
     
@@ -289,20 +310,17 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     vacp = 2.0
     dists_to_origin = (np.sum(np.abs(pos_array_shifted_to_origin)**vacp,axis=1))**(1.0/vacp)
     dists_plus_rad = dists_to_origin + r
+    max_dists_plus_rad = max(dists_plus_rad)
     vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
     iterCount = 0
-    while any(dists_plus_rad > vacRadInner)and(iterCount<maxVacuoleIterations):
+    while (max_dists_plus_rad > vacRadInner) and (iterCount < maxVacuoleIterations):
         #generate new vacRadInner according to a lognormal
         r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
         vacRadInner = np.exp(r_normals) # turn the normals into log-normals
         iterCount += 1
-    if(iterCount>=maxVacuoleIterations):
+    if(iterCount >= maxVacuoleIterations):
         print("Warning: Maxed Out on Vacuole Size Iterations.")
-        print(f"Iterations:{iterCount}")
-        print(f"{dists_plus_rad}")
-        print(f"{wall_Radius_Sigma}")
-        print(f"{wall_Radius_Mu}")
-        vacRad = -9999
+        vacRadInner = max_dists_plus_rad * 1.01  # fallback: adding a 1% buffer to avoid collisions with APBs
 
     vacRadOuter = 1.05*vacRadInner
 
@@ -328,7 +346,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   # add the resulting columns to the main dataframe:
   df = pd.concat([df.reset_index(drop=True), dfpos], axis=1)
 
-  return(df,pos_array,r_and_pos_array,dirmat_safe)
+  return(df,pos_array,r_and_pos_array,dirmat_safe,iterCount, ofv_original, ofv_final, compactness)
 
 
 def log_statistics(args, df):
@@ -347,8 +365,6 @@ def log_statistics(args, df):
         "seed": args.seed,
         "num_spheroids_requested": args.N,
         "num_spheroids_placed": len(spheroids),
-        "min_radius": args.min_radius,
-        "max_radius": args.max_radius,
         "vacuole_outer_radius": vacuole['rOuter'], # aross15 making it more clear
         "vacuole_inner_radius": vacuole['rInner'],    #sbackues
         "dx": args.dx,
@@ -365,12 +381,6 @@ def log_statistics(args, df):
     total_volume = ((4/3) * np.pi * (spheroid_radii ** 3)).sum()
     stats["total_spheroid_volume"] = float(total_volume)
     
-    '''
-    # Vacuole volume
-    vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
-    stats["vacuole_volume"] = float(vacuole_volume)
-    '''
-
     # Vacuole volume
     vacuole_volume = (4/3) * np.pi * vacuole['rInner'] ** 3
     stats["vacuole_volume"] = float(vacuole_volume.item()) if isinstance(vacuole_volume, np.ndarray) else float(vacuole_volume)
@@ -378,17 +388,14 @@ def log_statistics(args, df):
     # Log the statistics
     logging.info(f"Statistics: {stats}")
 
-
-
-
 #Set up logging
-def setup_logging(run_folder, seed):
-    log_file = os.path.join(run_folder, f'run.log')
+def setup_logging(runs_dir, seed):
+    log_file = os.path.join(runs_dir, f'run.log')
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Create a separate statistics file
-    stats_file = os.path.join(run_folder, f'statistics.json')
+    stats_file = os.path.join(runs_dir, f'statistics.json')
     
     # Log the seed
     logging.info(f"Random seed: {seed}")
@@ -396,7 +403,7 @@ def setup_logging(run_folder, seed):
     return stats_file
 
 #genballs
-def generate_piff_file(df, dx=8.0, filename='output.piff'):
+def generate_piff_file(df, dx, show_wall, filename='output.piff'):
     """
     Generates a PIFF file with spheroids and surrounding wall.
 
@@ -405,6 +412,8 @@ def generate_piff_file(df, dx=8.0, filename='output.piff'):
         dx (float): The resolution for grid boxes.
         filename (str): The name of the output PIFF file.
     """
+    
+    df.to_csv('dataframe_df.csv')
     piff_lines = []
     cell_id = 1  # Start CellID from 1
     max_voxel_value = -float('inf')  # Initialize max voxel value as negative infinity
@@ -414,10 +423,13 @@ def generate_piff_file(df, dx=8.0, filename='output.piff'):
     spheroids = df[df['bodyType'] == 'APB']
 
     # Generate boxes for spheroids (Body cells)
+    # dx is the scale factor, in nm per voxel.  Dividing by dx converts nm to voxels.  
     for index, spheroid in spheroids.iterrows():
-        x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx
-        R = spheroid['r'] / dx
-        # Define bounding box
+        x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx   #Center of spheriod in voxels 
+        R = spheroid['r'] / dx  #R = radius of spheroid in voxels 
+        pvals = spheroid['p']    #pvals = p-value (p-norm); 2=spherical
+        #print("pvals =", pvals)
+        # Define bounding box (in voxels) 
         x_min = x0 - R
         x_max = x0 + R
         y_min = y0 - R
@@ -434,173 +446,96 @@ def generate_piff_file(df, dx=8.0, filename='output.piff'):
         z_max = float(z_max.item()) if isinstance(z_max, np.ndarray) else float(z_max)
         dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
 
-        # Generate values using np.arange
-        x_vals = np.arange(x_min, x_max, dx)
-        y_vals = np.arange(y_min, y_max, dx)
-        z_vals = np.arange(z_min, z_max, dx)      
+        # Generate values using np.arange.  All values in voxels.  
+        x_vals = np.arange(x_min, x_max, 1)
+        y_vals = np.arange(y_min, y_max, 1)
+        z_vals = np.arange(z_min, z_max, 1)      
 
         for x in x_vals:
             for y in y_vals:
                 for z in z_vals:
                     # Calculate center of the voxel
-                    voxel_center = (x + dx / 2, y + dx / 2, z + dx / 2)
-                    distance_sq = ((voxel_center[0] - x0) ** 2 +
-                                   (voxel_center[1] - y0) ** 2 +
-                                   (voxel_center[2] - z0) ** 2)
-                    if distance_sq <= R ** 2:
-                        line = f"{cell_id} Body {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
+                    voxel_center = (x + 0.5, y + 0.5, z + 0.5)
+                    distance_sq = ((voxel_center[0] - x0) ** pvals +
+                                   (voxel_center[1] - y0) ** pvals +
+                                   (voxel_center[2] - z0) ** pvals)
+                    if distance_sq <= R ** pvals:
+                        line = f"{cell_id} Body {int(x)} {int(x)} {int(y)} {int(y)} {int(z)} {int(z)}"
                         piff_lines.append(line)
                         
                         # Track the maximum voxel value
-                        max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+                        max_voxel_value = max(max_voxel_value, x, y, z)
                         
         cell_id += 1  # Increment CellID for the next spheroid
 
-    # Generate boxes for the vacuole (Wall)
-    wall_cell_id = cell_id  # Assign a unique CellID for the wall
-    
-    # Scale physical coordinates and radii down to grid units
-    x0, y0, z0 = vacuole['x'] / dx, vacuole['y'] / dx, vacuole['z'] / dx
-    R_outer = vacuole['rOuter'] / dx
-    R_inner = vacuole['rInner'] / dx# aross15
+    #Generate the wall, if desired
+    if show_wall.lower() == "true":
 
-    # Define bounding box for the wall
-    x_min = x0 - R_outer
-    x_max = x0 + R_outer
-    y_min = y0 - R_outer
-    y_max = y0 + R_outer
-    z_min = z0 - R_outer
-    z_max = z0 + R_outer
-
-    # Ensure all inputs to np.arange are scalars
-    x_min = float(x_min.item()) if isinstance(x_min, np.ndarray) else float(x_min)
-    x_max = float(x_max.item()) if isinstance(x_max, np.ndarray) else float(x_max)
-    y_min = float(y_min.item()) if isinstance(y_min, np.ndarray) else float(y_min)
-    y_max = float(y_max.item()) if isinstance(y_max, np.ndarray) else float(y_max)
-    z_min = float(z_min.item()) if isinstance(z_min, np.ndarray) else float(z_min)
-    z_max = float(z_max.item()) if isinstance(z_max, np.ndarray) else float(z_max)
-    dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
-
-    # Generate the grid points for voxel placement, the dx step size ensures that the grid points are spaced correctly
-    x_vals = np.arange(x_min, x_max, dx)
-    y_vals = np.arange(y_min, y_max, dx)
-    z_vals = np.arange(z_min, z_max, dx)
-
-    for x in x_vals:
-        for y in y_vals:
-            for z in z_vals:
-                # Calculate center of the voxel
-                voxel_center = (x + dx / 2, y + dx / 2, z + dx / 2)
-                distance_sq = ((voxel_center[0] - x0) ** 2 +
-                               (voxel_center[1] - y0) ** 2 +
-                               (voxel_center[2] - z0) ** 2)
-                if R_inner ** 2 <= distance_sq <= R_outer ** 2:
-                    line = f"{wall_cell_id} Wall {int(x)} {int(x+dx)} {int(y)} {int(y+dx)} {int(z)} {int(z+dx)}"
-                    piff_lines.append(line)
-
-                    # Track the maximum voxel value
-                    max_voxel_value = max(max_voxel_value, x, x+dx, y, y+dx, z, z+dx)
+      # Generate boxes for the vacuole (Wall)
+      wall_cell_id = cell_id  # Assign a unique CellID for the wall
+      
+      # Scale physical coordinates (nm) and radii down to grid units (voxels).
+      x0, y0, z0 = vacuole['x'] / dx, vacuole['y'] / dx, vacuole['z'] / dx   #Center of the vacuol in voxels
+      R_outer = vacuole['rOuter'] / dx
+      R_inner = vacuole['rInner'] / dx #There is both an outer and inner because the vacuole is a hollow sphere.  In voxels.  
+  
+      # Define bounding box for the wall
+      x_min = x0 - R_outer
+      x_max = x0 + R_outer
+      y_min = y0 - R_outer
+      y_max = y0 + R_outer
+      z_min = z0 - R_outer
+      z_max = z0 + R_outer
+  
+      # Ensure all inputs to np.arange are scalars
+      x_min = float(x_min.item()) if isinstance(x_min, np.ndarray) else float(x_min)
+      x_max = float(x_max.item()) if isinstance(x_max, np.ndarray) else float(x_max)
+      y_min = float(y_min.item()) if isinstance(y_min, np.ndarray) else float(y_min)
+      y_max = float(y_max.item()) if isinstance(y_max, np.ndarray) else float(y_max)
+      z_min = float(z_min.item()) if isinstance(z_min, np.ndarray) else float(z_min)
+      z_max = float(z_max.item()) if isinstance(z_max, np.ndarray) else float(z_max)
+      dx = float(dx.item()) if isinstance(dx, np.ndarray) else float(dx)
+  
+      # Generate the grid points for voxel placement, the dx step size ensures that the grid points are spaced correctly
+      x_vals = np.arange(x_min, x_max, 1)
+      y_vals = np.arange(y_min, y_max, 1)
+      z_vals = np.arange(z_min, z_max, 1)
+  
+      for x in x_vals:
+          for y in y_vals:
+              for z in z_vals:
+                  # Calculate center of the voxel
+                  voxel_center = (x + 0.5, y + 0.5, z + 0.5)
+                  distance_sq = ((voxel_center[0] - x0) ** 2 +
+                                 (voxel_center[1] - y0) ** 2 +
+                                 (voxel_center[2] - z0) ** 2)
+                  if R_inner ** 2 <= distance_sq <= R_outer ** 2:
+                      line = f"{wall_cell_id} Wall {int(x)} {int(x)} {int(y)} {int(y)} {int(z)} {int(z)}"
+                      piff_lines.append(line)
+  
+                      # Track the maximum voxel value
+                      max_voxel_value = max(max_voxel_value, x, y, z)
                     
     # Write the PIFF content to a file
     with open(filename, 'w') as f:
         for line in piff_lines:
             f.write(line + '\n')
 
-    print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+    if show_wall.lower() == "true": 
+      print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+      logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+    elif show_wall.lower() == "false":
+      print (f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
+      logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
     print(f"Greatest voxel value found: {max_voxel_value}")
-    logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+    logging.info(f"Greatest voxel value found: {max_voxel_value}")
+    
 
     xml_file_path = './CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'
     update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
+    
+    #return piff_lines
 
-def visualize_spheroids_and_wall(spheroids, wall_center, wall_outer_radius, wall_thickness, x_max, y_max, z_max):
-    """
-    Visualizes the spheroids and the surrounding wall in 3D.
-    
-    Parameters:
-        spheroids (list): List of spheroid dictionaries.
-        wall_center (tuple): The (x, y, z) coordinates of the wall's center.
-        wall_outer_radius (float): The outer radius of the wall.
-        wall_thickness (float): The thickness of the wall.
-        x_max (float): Maximum x-axis limit for visualization.
-        y_max (float): Maximum y-axis limit for visualization.
-        z_max (float): Maximum z-axis limit for visualization.
-    """
-    fig = plt.figure(figsize=(12, 10))
-    ax = fig.add_subplot(111, projection='3d')
-    
-    # Plot the hollow wall as two wireframes (outer and inner spheres)
-    plot_hollow_sphere(ax, wall_center, wall_outer_radius, wall_thickness, color='lightblue', alpha=0.2)
-    
-    # Plot the spheroids
-    for spheroid in spheroids:
-        plot_sphere(ax, spheroid['x'], spheroid['y'], spheroid['z'],
-                    spheroid['radius'], color='red', alpha=0.6)
-    
-    # Set plot limits
-    ax.set_xlim(0, x_max)
-    ax.set_ylim(0, y_max)
-    ax.set_zlim(0, z_max)
-    
-    # Labels
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    
-    # Equal aspect ratio
-    ax.set_box_aspect([x_max, y_max, z_max])
-    
-    plt.title('Randomly Placed and Clustered Spheroids within Surrounding Wall')
-    plt.show()
-
-def plot_sphere(ax, x_center, y_center, z_center, radius, color='r', alpha=0.6):
-    """
-    Plots a single sphere.
-    
-    Parameters:
-        ax (Axes3D): The 3D axes to plot on.
-        x_center (float): X-coordinate of the sphere's center.
-        y_center (float): Y-coordinate of the sphere's center.
-        z_center (float): Z-coordinate of the sphere's center.
-        radius (float): Radius of the sphere.
-        color (str): Color of the sphere.
-        alpha (float): Transparency of the sphere.
-    """
-    u = np.linspace(0, 2 * np.pi, 30)
-    v = np.linspace(0, np.pi, 30)
-    x = x_center + radius * np.outer(np.cos(u), np.sin(v))
-    y = y_center + radius * np.outer(np.sin(u), np.sin(v))
-    z = z_center + radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_surface(x, y, z, color=color, alpha=alpha, linewidth=0, shade=True)
-
-def plot_hollow_sphere(ax, center, outer_radius, wall_thickness, color='lightblue', alpha=0.2):
-    """
-    Plots a hollow sphere (wall) using wireframes for outer and inner boundaries.
-    
-    Parameters:
-        ax (Axes3D): The 3D axes to plot on.
-        center (tuple): The (x, y, z) coordinates of the wall's center.
-        outer_radius (float): The outer radius of the wall.
-        wall_thickness (float): The thickness of the wall.
-        color (str): Color of the wall wireframes.
-        alpha (float): Transparency of the wireframes.
-    """
-    inner_radius = outer_radius - wall_thickness
-    u = np.linspace(0, 2 * np.pi, 30)
-    v = np.linspace(0, np.pi, 30)
-    
-    # Outer sphere
-    x_outer = center[0] + outer_radius * np.outer(np.cos(u), np.sin(v))
-    y_outer = center[1] + outer_radius * np.outer(np.sin(u), np.sin(v))
-    z_outer = center[2] + outer_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_wireframe(x_outer, y_outer, z_outer, color=color, alpha=alpha, linewidth=0.5)
-    
-    # Inner sphere
-    x_inner = center[0] + inner_radius * np.outer(np.cos(u), np.sin(v))
-    y_inner = center[1] + inner_radius * np.outer(np.sin(u), np.sin(v))
-    z_inner = center[2] + inner_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-    ax.plot_wireframe(x_inner, y_inner, z_inner, color=color, alpha=alpha, linewidth=0.5)
-    
 def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
     # Parse the XML file
     tree = ET.parse(xml_file_path)
@@ -616,121 +551,8 @@ def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
 
     # Save the changes back to the XML file
     tree.write(xml_file_path)
-    
-def load_parameters_from_file(file_path):
-    """
-    Reads parameters from a specified file and returns them as a dictionary.
 
-    Parameters:
-        file_path (str): Path to the file containing parameters.
-
-    Returns:
-        dict: Dictionary with parameter names as keys and their values.
-    """
-    try:
-        parameters = {}
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Remove comments and trim whitespace
-                line = line.split('#')[0].strip()
-                
-                # Skip empty lines
-                if not line:
-                    continue
-                
-                # Split on the first '=' only
-                parts = line.split('=', 1)
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].strip().strip('"')  # Remove quotes if present
-                    parameters[key] = value
-        
-        return parameters
-    except Exception as e:
-        print(f"Error reading parameters file: {e}")
-        return None
-
-def main(args):
-
-    # Generate a unique run ID based on the current date and time
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Create a new folder for this run
-    runs_dir = 'runs'
-    if not os.path.exists(runs_dir):
-        os.makedirs(runs_dir)
-    run_folder = os.path.join(runs_dir, run_id)
-    os.makedirs(run_folder)
-
-    # Setup logging and get stats file path
-    stats_file = setup_logging(run_folder, args.seed)
-
-    if args.seed is None:
-        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    rng = np.random.default_rng(args.seed)
-
-    logging.info(f"Starting new run with ID: {run_id}")
-    logging.info(f"Arguments: {args}")
-
-    # Extract parameters from arguments
-    N_SPHEROIDS = args.N
-    BODY_MU = args.mu
-    BODY_SIGMA = args.sigma
-    MIN_RADIUS = args.min_radius
-    MAX_RADIUS = args.max_radius
-    WALL_RADIUS_MU = args.wall_radius_mu
-    WALL_RADIUS_SIGMA = args.wall_radius_sigma
-    WALL_THICKNESS = args.wall_thickness
-    DX = args.dx
-    MAX_TRIES = args.max_tries
-    filename = args.output
-
-    # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe = genBalls3(
-        bodies=N_SPHEROIDS,
-        wall_Radius_Mu=WALL_RADIUS_MU,
-        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
-        mu = BODY_MU,
-        sigma = BODY_SIGMA,
-        iterations=args.iterations,
-        ndim=3,
-        rng=rng,
-        method='hcp',
-        plist=None,
-        pcterrcap=10.0,
-        posOctant=True,
-        optimmaxiter=args.optimmaxiter,
-        maxVacuoleIterations=100
-    )
-
-    # Log statistics
-    log_statistics(args, df)
-
-    # Generate PIFF file
-    generate_piff_file(df, dx=8.0, filename=filename)
-
-    # Write the combined CSV directly to the run folder
-    csv_filename = f'{run_id}_combined.csv'
-    csv_filepath = os.path.join(run_folder, csv_filename)
-    write_combined_csv(run_folder, run_id, args, df)
-
-    # Save a copy of the PIFF file in the run folder
-    piff_copy_path = os.path.join(run_folder, filename)
-    shutil.copy(filename, piff_copy_path)
-    logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
-
-    # Save the PIFF file in the Simulation folder (for cc3d use)
-    cc3d = './CompuCell3D/cc3dSimulation/Simulation'
-    if os.path.exists(cc3d):
-        shutil.copy(filename, os.path.join(cc3d, filename))
-        logging.info(f"Copied PIFF file to CC3D simulation folder")
-
-    logging.info(f"Run {run_id} completed successfully.")
-
-
-def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius):
+def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius=8.0):
     """
     Calculate additional metrics for a single spheroid.
     """
@@ -741,38 +563,14 @@ def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius):
         (spheroid.y - vacuole['y'])**2 + 
         (spheroid.z - vacuole['z'])**2
     )
-    
-    neighbors = []
-    for other in spheroids_df.itertuples():
-        if other.Index == spheroid.Index:
-            continue
-        
-        dx = spheroid.x - other.x
-        dy = spheroid.y - other.y
-        dz = spheroid.z - other.z
-        center_distance = np.sqrt(dx**2 + dy**2 + dz**2)
-        surface_distance = center_distance - (spheroid.r + other.r)
-        
-        neighbors.append({
-            'center_distance': center_distance,
-            'surface_distance': surface_distance
-        })
-    
-    neighbors.sort(key=lambda x: x['center_distance'])
-    
-    local_radius = 2.5 * max_radius
-    local_neighbors = [n for n in neighbors if n['center_distance'] <= local_radius]
-    local_density = len(local_neighbors) / ((4/3) * np.pi * local_radius**3)
-    
+       
     distance_to_wall = abs(distance_from_center - vacuole['rInner'])
+    
+    
     
     return {
         'volume': volume,
         'distance_from_center': distance_from_center,
-        'nearest_neighbor_center_distance': neighbors[0]['center_distance'] if neighbors else None,
-        'nearest_neighbor_surface_distance': neighbors[0]['surface_distance'] if neighbors else None,
-        'num_neighbors': len(local_neighbors),
-        'local_density': local_density,
         'distance_to_wall': distance_to_wall
     }
 
@@ -780,8 +578,6 @@ def write_combined_csv(run_folder, run_id, args, df):
     """
     Write a single CSV file containing both summary and detailed information.
     """
-    import csv
-    from datetime import datetime
     
     # Separate vacuole and spheroids
     vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
@@ -792,6 +588,7 @@ def write_combined_csv(run_folder, run_id, args, df):
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
     vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
     success_rate = len(spheroids) / args.N * 100
+    
     
     # Create output file path
     output_file = os.path.join(run_folder, f'{run_id}_combined.csv')
@@ -810,21 +607,18 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Number of Spheroids Requested', args.N),
                 ('Number of Spheroids Placed', len(spheroids)),
                 ('Success Rate (%)', success_rate),
-                ('Minimum Radius', args.min_radius),
-                ('Maximum Radius', args.max_radius),
                 ('Body Radius Mu', args.mu),
                 ('Body Radius Sigma', args.sigma),
+                ('Wall Radius Mu', args.wall_radius_mu),
+                ('Wall Radius Sigma', args.wall_radius_sigma),
+                ('Body Number Mu', args.mu_body_number),
+                ('Body Number Sigma', args.sigma_body_number), 
                 ('Vacuole Inner Radius', float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])), #sbackues
-                ('Wall Thickness', args.wall_thickness),
                 ('Grid Resolution (dx)', args.dx),
                 ('Maximum Tries', args.max_tries),
                 ('Total Spheroid Volume', float(total_spheroid_volume)),
                 ('Vacuole Volume', float(vacuole_volume)),
                 ('Total Volume', float(total_spheroid_volume + vacuole_volume)),
-                ('Distribution Mean (mu)', np.log((args.min_radius + args.max_radius) / 2)),
-                ('Distribution Sigma', args.sigma),
-                ('Wall Radius Mean (mu)', args.wall_radius_mu),
-                ('Wall Radius Sigma', args.wall_radius_sigma),
                 ('Iterations', args.iterations),
                 ('Optimization Max Iterations', args.optimmaxiter)
             ]
@@ -842,7 +636,7 @@ def write_combined_csv(run_folder, run_id, args, df):
             
             # Process and write spheroid data first
             for idx, spheroid in enumerate(spheroids.itertuples(), 1):
-                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole, args.max_radius)
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole)
                 
                 writer.writerow([
                     idx,  # cell_id
@@ -853,10 +647,6 @@ def write_combined_csv(run_folder, run_id, args, df):
                     spheroid.r,
                     metrics['volume'],
                     metrics['distance_from_center'],
-                    metrics['nearest_neighbor_center_distance'],
-                    metrics['nearest_neighbor_surface_distance'],
-                    metrics['num_neighbors'],
-                    metrics['local_density'],
                     metrics['distance_to_wall'],
                     spheroid.p
                 ])
@@ -899,7 +689,7 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Packing Density (%)', float(total_spheroid_volume / vacuole_volume * 100))
             ]
             writer.writerows(stats_data)
-        
+                       
         logging.info(f"Generated combined CSV file: {output_file}")
         return output_file
         
@@ -907,27 +697,253 @@ def write_combined_csv(run_folder, run_id, args, df):
         logging.error(f"Error writing combined CSV file: {str(e)}")
         raise
 
+def write_body_size_combined_csv(runs_dir, run_id, args, df):
+    """
+    Write a single CSV file for all of the runs containing body size information.    
+    """
+    
+    # Separate vacuole and spheroids
+    vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
+    spheroids = df[df['bodyType'] == 'APB']
+    
+    # Create combined output file in the runs directory for all bodies, to check body size distributions
+    body_output_file = os.path.join(runs_dir, 'Body_Size_combined.csv')
+        
+    try:
+        with open(body_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+            
+            # === Detailed Cell Information Section ===
+            writer.writerow([
+                'Run ID', 
+                'Cell ID', 
+                'type', 
+                'x', 
+                'y', 
+                'z', 
+                'radius', 
+                'volume',
+                'distance_from_center',
+                'nearest_neighbor_center_distance',
+                'nearest_neighbor_surface_distance',
+                'num_neighbors',
+                'local_density',
+                'distance_to_wall', 
+                'p_value', 
+                'Body_Radius_Mu', 
+                'Body_Radius_Sigma'
+            ])
+            
+            # Process and write spheroid data first
+            for idx, spheroid in enumerate(spheroids.itertuples(), 1):
+                metrics = calculate_spheroid_metrics(spheroid, spheroids, vacuole)
+                
+                writer.writerow([
+                    run_id,
+                    idx,  # cell_id
+                    'Body',  # type
+                    spheroid.x,
+                    spheroid.y,
+                    spheroid.z,
+                    spheroid.r,
+                    metrics['volume'],
+                    metrics['distance_from_center'],
+                    metrics['distance_to_wall'],
+                    spheroid.p,
+                    args.mu,
+                    args.sigma
+                ])
+        logging.info(f"Updated combined body size CSV file: {body_output_file}")
+        return body_output_file
+              
+    except Exception as e:
+        logging.error(f"Error writing completely combined body size CSV file")
+        raise
+
+def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, ofv_final, compactness):
+    """
+    Write a single CSV file for all of the runs containing information on the vacuole size and body number.  Puts it in the "runs" folder.  
+    """
+    
+    # Separate vacuole and spheroids
+    vacuole = df[df['bodyType'] == 'Vacuole'].iloc[0]
+    spheroids = df[df['bodyType'] == 'APB']
+    
+    # Calculate global statistics
+    # Vacuole volume based on inner radius; the hollow volume that the spheres can be in is what matters #sbackues
+    total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
+    vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
+    success_rate = len(spheroids) / args.N * 100
+    
+    # Calculate additional statistics
+    avg_radius = spheroids['r'].mean()
+    std_radius = spheroids['r'].std()
+    largest_radius = spheroids['r'].max()
+    avg_distance = spheroids.apply(
+        lambda row: np.sqrt(row['x']**2 + row['y']**2 + row['z']**2), 
+        axis=1
+    ).mean()
+    if (ofv_original) == 'No optimization':
+      optim_factor = 'No optimization'  
+    else:
+      optim_factor = (ofv_original/ofv_final) - 1
+    
+            
+    # Create combined output file in the runs directory for all runs
+    vac_output_file = os.path.join(runs_dir, 'Vacuole_Data_combined.csv')
+    
+    try:  
+        with open(vac_output_file, 'a', newline='') as f:
+            writer = csv.writer(f)
+
+            # Column headers were created in Pipeline_Interface
+            # outputting a line of actual info
+            writer.writerow([
+                run_id,
+                datetime.now().isoformat(),
+                args.seed,
+                args.dx,
+                args.mu,    #body radius mu
+                args.sigma, #body radius sigma
+                args.pvals, #p-norm value
+                float(avg_radius),
+                float(std_radius),
+                float(largest_radius),
+                float(avg_distance),
+                args.mu_body_number,
+                args.sigma_body_number,
+                args.N,
+                len(spheroids),
+                success_rate,
+                args.iterations,     #Body placement attempts
+                args.optimmaxiter,   #Max Number of iterations of the clustering code
+                ofv_original,        #ofv before clustering  
+                ofv_final,           #ofv after clustering (should be less)  
+                optim_factor,
+                compactness,
+                args.wall_radius_mu,
+                args.wall_radius_sigma,
+                float(vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner']),
+                float(vacuole_volume),
+                float(total_spheroid_volume),
+                float(total_spheroid_volume / vacuole_volume * 100),
+                args.max_tries,
+                iterCount,
+                float(vacuole['x'].item() if isinstance(vacuole['x'], np.ndarray) else vacuole['x']),  # Add x-coordinate
+                float(vacuole['y'].item() if isinstance(vacuole['y'], np.ndarray) else vacuole['y']),  # Add y-coordinate
+                float(vacuole['z'].item() if isinstance(vacuole['z'], np.ndarray) else vacuole['z'])   # Add z-coordinate
+                ])                                           
+                
+        logging.info(f"Updated combined vacuole data CSV file: {vac_output_file}")
+        return vac_output_file
+              
+    except Exception as e:
+        logging.error(f"Error writing completely combined vacuole data CSV file")
+        raise
+
+
+def main(args):
+
+    # Generate a unique run ID based on the current date and time
+    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    run_folder = args.run_folder
+
+    # Setup logging and get stats file path
+    stats_file = setup_logging(run_folder, args.seed)
+
+    if args.seed is None:
+        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    rng = np.random.default_rng(args.seed)
+
+    logging.info(f"Starting new run with ID: {run_id}")
+    logging.info(f"Arguments: {args}")
+
+    # Extract parameters from arguments
+    N_SPHEROIDS = args.N
+    BODY_MU = args.mu
+    BODY_SIGMA = args.sigma
+    WALL_RADIUS_MU = args.wall_radius_mu
+    WALL_RADIUS_SIGMA = args.wall_radius_sigma
+    DX = args.dx
+    MAX_TRIES = args.max_tries
+    filename = args.output
+    PIFF = args.PIFF
+
+    # Generate spheroids using genBalls3
+    df, pos_array, r_and_pos_array, dirmat_safe, iterCount, ofv_original, ofv_final, compactness = genBalls3(
+        bodies=N_SPHEROIDS,
+        wall_Radius_Mu=WALL_RADIUS_MU,
+        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
+        mu = BODY_MU,
+        sigma = BODY_SIGMA,
+        iterations=args.iterations,
+        ndim=3,
+        rng=rng,
+        method='hcp',
+        plist=None,
+        pcterrcap=10.0,
+        posOctant=True,
+        optimmaxiter=args.optimmaxiter,
+        maxVacuoleIterations=100
+    )
+  
+    # Log statistics
+    log_statistics(args, df)
+    
+    # Write the combined CSVs directly to the run folder
+    write_body_size_combined_csv(run_folder, run_id, args, df)
+    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
+    
+    # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
+    if PIFF == 1 or PIFF == 2:
+        generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
+
+        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
+        if os.path.exists(cc3d):
+            shutil.copy(filename, os.path.join(cc3d, filename))
+            logging.info(f"Copied PIFF file to CC3D simulation folder")
+        
+   
+    #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
+    # Also add statistics for that run as a csv to that folder.  
+    if PIFF == 2:
+        run_subfolder = os.path.join(run_folder, run_id)
+        os.makedirs(run_subfolder)
+        piff_copy_path = os.path.join(run_subfolder, filename)
+        shutil.copy(filename, piff_copy_path)
+        logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
+        write_combined_csv(run_subfolder, run_id, args, df)
+
+    logging.info(f"Run {run_id} completed successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Generate PIFF file with N randomly clustered spheroids inside a surrounding hollow Wall.')
+    parser.add_argument('--run_folder', type=str, required=True, help='Folder to save the results into')
     parser.add_argument('--N', type=int, required=True, help='Number of internal spheroids to generate')
     parser.add_argument('--mu', type=float, required=True, help='Log-normal mean for spheroid radii')
     parser.add_argument('--sigma', type=float, required=True, help='Log-normal sigma for spheroid radii') 
+    parser.add_argument('--pvals', type = float, required = False, help = 'p-value (p-norm) for controlling body sphericity.  2 = spherical')
     parser.add_argument("--wall_radius_mu", type=float, required=True, help="Log-normal mean for wall radius")
     parser.add_argument("--wall_radius_sigma", type=float, required=True, help="Log-normal sigma for wall radius")    
-       
-    parser.add_argument('--min_radius', type=float, default=3.0, help='Minimum radius for spheroids (default: 3)')
-    parser.add_argument('--max_radius', type=float, default=8.0, help='Maximum radius for spheroids (default: 8)')
+    parser.add_argument('--mu_body_number', type=float, required=True, help='Log-normal mean for body number')   
+    parser.add_argument('--sigma_body_number', type=float, required=True, help='Log-normal sigma for body number')     
+    parser.add_argument('--dx', type=float, required=True, help='Resolution for grid boxes, in nm per pixel')
+    parser.add_argument('--show_wall', type=str, required=True, help='Whether or not to show the vacuole wall in the PIFF file')
+    parser.add_argument('--optimmaxiter', type=int, required=True, help='Maximum iterations for optimization') 
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
-    parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall (default: 2)')
-    parser.add_argument('--dx', type=float, default=8.0, help='Resolution for grid boxes (default: 1.0)')
+    parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall for visualization (default: 2) - not used in the PIFF file')
     parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
-    parser.add_argument('--optimmaxiter', type=int, default=100, help='Maximum iterations for optimization')
-    parser.add_argument('--csv_output', type=str, help='Output CSV file name')
+    parser.add_argument('--PIFF', type=int, default=1, help='0=no PIFF, 1=PIFF overwritten, 2=PIFF saved')
+    
+    
 
     args = parser.parse_args()
     main(args)
+
