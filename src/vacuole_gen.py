@@ -542,117 +542,6 @@ def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
 
     # Save the changes back to the XML file
     tree.write(xml_file_path)
-    
-def load_parameters_from_file(file_path):
-    """
-    Reads parameters from a specified file and returns them as a dictionary.
-
-    Parameters:
-        file_path (str): Path to the file containing parameters.
-
-    Returns:
-        dict: Dictionary with parameter names as keys and their values.
-    """
-    try:
-        parameters = {}
-        with open(file_path, 'r') as file:
-            for line in file:
-                # Remove comments and trim whitespace
-                line = line.split('#')[0].strip()
-                
-                # Skip empty lines
-                if not line:
-                    continue
-                
-                # Split on the first '=' only
-                parts = line.split('=', 1)
-                if len(parts) == 2:
-                    key = parts[0].strip()
-                    value = parts[1].strip().strip('"')  # Remove quotes if present
-                    parameters[key] = value
-        
-        return parameters
-    except Exception as e:
-        print(f"Error reading parameters file: {e}")
-        return None
-
-def main(args):
-
-    # Generate a unique run ID based on the current date and time
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    run_folder = args.run_folder
-
-    # Setup logging and get stats file path
-    stats_file = setup_logging(run_folder, args.seed)
-
-    if args.seed is None:
-        args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    rng = np.random.default_rng(args.seed)
-
-    logging.info(f"Starting new run with ID: {run_id}")
-    logging.info(f"Arguments: {args}")
-
-    # Extract parameters from arguments
-    N_SPHEROIDS = args.N
-    BODY_MU = args.mu
-    BODY_SIGMA = args.sigma
-    WALL_RADIUS_MU = args.wall_radius_mu
-    WALL_RADIUS_SIGMA = args.wall_radius_sigma
-    DX = args.dx
-    MAX_TRIES = args.max_tries
-    filename = args.output
-    PIFF = args.PIFF
-
-    # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe, iterCount, ofv_original, ofv_final, compactness = genBalls3(
-        bodies=N_SPHEROIDS,
-        wall_Radius_Mu=WALL_RADIUS_MU,
-        wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
-        mu = BODY_MU,
-        sigma = BODY_SIGMA,
-        iterations=args.iterations,
-        ndim=3,
-        rng=rng,
-        method='hcp',
-        plist=None,
-        pcterrcap=10.0,
-        posOctant=True,
-        optimmaxiter=args.optimmaxiter,
-        maxVacuoleIterations=100
-    )
-  
-    # Log statistics
-    log_statistics(args, df)
-    
-    # Write the combined CSVs directly to the run folder
-    write_body_size_combined_csv(run_folder, run_id, args, df)
-    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
-    
-    # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
-    if PIFF == 1 or PIFF == 2:
-        generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
-
-        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
-        if os.path.exists(cc3d):
-            shutil.copy(filename, os.path.join(cc3d, filename))
-            logging.info(f"Copied PIFF file to CC3D simulation folder")
-        
-   
-    #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
-    # Also add statistics for that run as a csv to that folder.  
-    if PIFF == 2:
-        run_subfolder = os.path.join(run_folder, run_id)
-        os.makedirs(run_subfolder)
-        piff_copy_path = os.path.join(run_subfolder, filename)
-        shutil.copy(filename, piff_copy_path)
-        logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
-        write_combined_csv(run_subfolder, run_id, args, df)
-
-    logging.info(f"Run {run_id} completed successfully.")
-
 
 def calculate_spheroid_metrics(spheroid, spheroids_df, vacuole, max_radius=8.0):
     """
@@ -943,12 +832,16 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
         logging.error(f"Error writing completely combined vacuole data CSV file")
         raise
 
+
 def main(args):
 
     # Generate a unique run ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     run_folder = args.run_folder
+
+    # Setup logging and get stats file path
+    stats_file = setup_logging(run_folder, args.seed)
 
     if args.seed is None:
         args.seed = random.randint(1, 1000000)  # Generate a random seed if not provided
@@ -971,7 +864,7 @@ def main(args):
     PIFF = args.PIFF
 
     # Generate spheroids using genBalls3
-    df, pos_array, r_and_pos_array, dirmat_safe, iterCount = genBalls3(
+    df, pos_array, r_and_pos_array, dirmat_safe, iterCount, ofv_original, ofv_final, compactness = genBalls3(
         bodies=N_SPHEROIDS,
         wall_Radius_Mu=WALL_RADIUS_MU,
         wall_Radius_Sigma=WALL_RADIUS_SIGMA,  
@@ -993,11 +886,11 @@ def main(args):
     
     # Write the combined CSVs directly to the run folder
     write_body_size_combined_csv(run_folder, run_id, args, df)
-    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount)
+    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
     
     # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
     if PIFF == 1 or PIFF == 2:
-        generate_piff_file(df, dx=args.dx, filename=filename)
+        generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
 
         cc3d = './CompuCell3D/cc3dSimulation/Simulation'
         if os.path.exists(cc3d):
@@ -1016,7 +909,6 @@ def main(args):
         write_combined_csv(run_subfolder, run_id, args, df)
 
     logging.info(f"Run {run_id} completed successfully.")
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
