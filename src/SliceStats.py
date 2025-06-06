@@ -106,8 +106,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             wallRadius = int(input())
             print("\n>>Enter the given wall's central x-coordinate:", end='')
             centerX = int(input())
-    
-    unScaledVacMin = 300.0    
+      
     vacMin = (unScaledVacMin / scaleFactor)
     print("Default slice recognition limit (radius) = %d units" % vacMin)
     
