@@ -26,7 +26,7 @@ from skimage import measure
 ''' Todo Dec. 2024:
 1. Fix lines 68-82: right now they are setting the slice size based on the body cluster, not the wall. Make them read the vacuole size from the combined csv made by vacuole_gen
 2. Get values of mu and sigma for body size and number from Vacuole_gen csv and add those to the output csv (line 399))
-3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true
+DONE 3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true 
 4. Fix error handling for vacuole slice limit (line 135)
 5. Add option to take serial slices?'''
 
