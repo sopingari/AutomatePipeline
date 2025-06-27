@@ -113,8 +113,10 @@ def loadDataArea(fileSelectOpt):
         Tk().withdraw()
         inputFile = askopenfilename()
         sim_slices = pullData(inputFile)
-        sim_slices = sim_slices[sim_slices.time != 'time'].dropna(axis = 0)  #Removing non-number rows (left-over headers) and NaN's.  This works 
-        sim_slices = sim_slices['area_scaled'].astype(float)       
+        print(sim_slices.head())
+        sim_slices = sim_slices[sim_slices.time != 'time'].dropna(axis = 0)  #Removing non-number rows (left-over headers) and NaN's.   
+        sim_slices = sim_slices[['area_scaled', 'size_mu', 'size_sigma']].astype(float) #So we can filter by mu or sigma later
+        print(sim_slices.head()) 
         print ('Your body area data has been loaded and is ready to use')
         return real_slices, sim_slices
 
@@ -163,8 +165,12 @@ def pullData(dataFile, head = 0):
     slices = pd.read_csv(inStream, header = head)
     inStream.close()
     return slices
+ 
+
+
 
 def findAverage_size(real, sim):
+    sim = sim['area_scaled']
     data_sets = [real, sim]
     which_data = 0
     for data in data_sets:
@@ -208,19 +214,37 @@ def findAverage_num(real, sim):
 
 
 def ksTest(real, sim):
-    # print(real)
-    # print(sim)
+    sim = sim['area_scaled']
     ks = stats.ks_2samp(real, sim)
     print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
     # ks2 = stats.kstest(real, sim)
     # print (f"Or, the Kolmogorov-Smirnov statistic for your two data sets is {ks2.statistic:.3f}, and the p-value is {ks2.pvalue:.2E}. \n")
     return ks
 
-    
+def multiKS(real, sim):
+    mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
+    mu_list = sorted(mus) 
+    print(mu_list)
+    print(type(mu_list))
+    sigmas = sim['size_sigma'].value_counts().index.tolist()      # Extracts all of the different values of sigma
+    sigma_list = sorted(sigmas)
+    print(sigma_list)
+    print(type(sigma_list))
+    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks'])
+    for mu in mu_list:
+        split_data = sim.loc[sim['size_mu'] == mu]
+        for sigma in sigma_list:
+            splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
+            ks = ksTest(real, splitter_data)
+            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
+            multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
+    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')        
+    return multi_ks_results, sorted_ks_results 
+
 def qqPlot(real, sim):
 
 
-    
+    sim = sim['area_scaled']
     #statsmodels.graphics.gofplots.qqplot_2samples(statsA, statsB, xlabel='Real Data', ylabel='Simulated Data')
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
@@ -234,6 +258,7 @@ def qqPlot(real, sim):
 def violinPlot(real, sim, prog):
     fig=plt.figure()
     ax = fig.add_subplot(111)
+    sim = sim['area_scaled']
     data = [real, sim]
     
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
