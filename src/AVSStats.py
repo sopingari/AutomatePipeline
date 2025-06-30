@@ -40,11 +40,11 @@ def main(fileSelectOpt = True, manual = True):
         programMode = input()
         for _ in range(100):     #So that the user can run multiple tests
             print(">>Please select an option: ")
-            print("[1]: Load your data")  ### Works  
-            print("[2]: Calculate statistics on your data")   #### Works 
-            print("[3]: Perform KS (Kolmogorov-Smirnov test)")   ### Works 
-            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works on local machine
-            print("[5]: Generate a Violin Plot")   ### Works on local machine
+            print("[1]: Load your data")  ### Works for both size and number, I think  
+            print("[2]: Calculate statistics on your data")   #### Needs to be updated to handle split data
+            print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Needs a little more testing 
+            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Needs to be updated to handle split data
+            print("[5]: Generate a Violin Plot")   ### Needs to be updated to handle split data
             print("[6]: Choose to analyze body size or body number")
             print("[0]: Exit Script")
             
@@ -78,7 +78,7 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "3"):
                 try:
-                    ksTest(real = real_slices, sim = sim_slices)  
+                    multiKS(real = real_slices, sim = sim_slices)  
                 except:
                     loadDataMessage()
             elif(userSelection == "4"):
@@ -95,7 +95,7 @@ def main(fileSelectOpt = True, manual = True):
             elif(userSelection == "0"):
                 raise SystemExit
             else:
-                print("Please choose an option 0 through 5 by typing that number")
+                print("Please choose an option 0 through 6 by typing that number")
     else:
         print("Coming soon: Automated analysis of multiple runs to find the best mu and sigma ")
 
@@ -135,7 +135,8 @@ def loadDataNumber(fileSelectOpt):
         addZeros = pd.DataFrame(addZeros, dtype = int)
         real_slices = pd.concat([real_slices, addZeros], ignore_index = True) 
         real_slices.columns = ['number']
-        real_body_number = real_slices['number'].astype(int)  
+        real_body_number = real_slices['number'].astype(int) 
+        print(real_body_number.head())  
         #print(real_slices.dtypes)
         # print(real_body_number.value_counts())  #For verification
         print(">>Now select the csv file that contains your simulated data.  In this case the 'body_number' column contains a unique identifying number for each body sliced:")
@@ -143,15 +144,46 @@ def loadDataNumber(fileSelectOpt):
         Tk().withdraw()
         inputFile = askopenfilename()
         sim_slices = pullData(inputFile)
-        sim_slices = sim_slices[sim_slices.time != 'time']  #Removing non-number rows (left-over headers).  This works 
-        sim_body_slices = sim_slices.dropna( axis = 0)   #Removing rows that had "NaN" because there were no bodies captured in that slice
-        empty_slice_num = sim_slices.shape[0] - sim_body_slices.shape[0]   #Calculating the number of rows that had "NaN" because there were no bodies captured in that slice
-        empty_slices = [0]*empty_slice_num      #Creating a list of 0's to represent the empty slices
-        #print(sim_body_slices['time'].value_counts())  #The number of occurences of each timestamp is how many bodies were found in that slice
-        sim_body_number = pd.DataFrame({'number': sim_body_slices['time'].value_counts().to_list()})
-        sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
+        size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())[:-1]  #extracts all of the different values of mu, sorted, and removes the last value (the column header)
+        print("size mus", size_mus)
+        size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())[:-1]
+        print("size sigmas", size_sigmas)
+        number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())[:-1] 
+        print("number mus", number_mus)
+        number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())[:-1]
+        print("number sigmas", number_sigmas)
+        sim_body_numbers = pd.DataFrame()  #Creating an empty dataframe to hold the final body number data
+        for size_mu in size_mus: 
+            split_data = sim_slices.loc[sim_slices['size_mu'] == size_mu]  #splitting up the data
+            for size_sigma in size_sigmas:
+                split_data2 = split_data.loc[split_data['size_sigma'] == size_sigma]
+                for number_mu in number_mus:
+                    split_data3 = split_data2.loc[split_data2['number_mu'] == number_mu]
+                    for number_sigma in number_sigmas:
+                        split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
+                        split_slices = split_slices[sim_slices.time != 'time']  #Removing non-number rows (left-over headers).  This works 
+                        split_slices = split_slices.dropna( axis = 0)   #Removing rows that had "NaN" because there were no bodies captured in that slice
+                        empty_slice_num = split_slices.shape[0] - split_slices.shape[0]   #Calculating the number of rows that had "NaN" because there were no bodies captured in that slice
+                        empty_slices = [0]*empty_slice_num      #Creating a list of 0's to represent the empty slices
+                        sim_body_number = pd.DataFrame({'number': split_slices['time'].value_counts().to_list()})  #The number of unique timestamps is the number of bodies in the slice                        sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
+                        sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
+                        size_mu_list = [size_mu]*len(sim_body_number)  #Creating a list of the size_mu value to add to the dataframe
+                        size_sigma_list = [size_sigma]*len(sim_body_number)
+                        number_mu_list = [number_mu]*len(sim_body_number)  
+                        number_sigma_list = [number_sigma]*len(sim_body_number)
+                        sim_body_number['size_mu'] = size_mu_list  #Adding the size_mu value to the dataframe
+                        sim_body_number['size_sigma'] = size_sigma_list  #Adding the size_sigma value to the dataframe
+                        sim_body_number['number_mu'] = number_mu_list  #Adding the number_mu value  to the dataframe
+                        sim_body_number['number_sigma'] = number_sigma_list  #Adding the number_sigma value to the dataframe
+                        print("single slice", sim_body_number.head())  #For verification  
+                        sim_body_numbers = pd.concat([sim_body_numbers, sim_body_number], ignore_index = True)  # putting it all together
+        print(sim_body_numbers.head())  #For verification
+        
+
+
         sim_body_number = sim_body_number['number'].astype(int)
         # print(sim_body_number.value_counts())  #For verification
+        print(sim_body_number.head()) 
         print ('Your body number data has been loaded and is ready to use')
         return real_body_number, sim_body_number
 
@@ -225,11 +257,11 @@ def multiKS(real, sim):
     mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
     mu_list = sorted(mus) 
     print(mu_list)
-    print(type(mu_list))
+    #print(type(mu_list))
     sigmas = sim['size_sigma'].value_counts().index.tolist()      # Extracts all of the different values of sigma
     sigma_list = sorted(sigmas)
     print(sigma_list)
-    print(type(sigma_list))
+    #print(type(sigma_list))
     multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks'])
     for mu in mu_list:
         split_data = sim.loc[sim['size_mu'] == mu]
@@ -258,7 +290,10 @@ def qqPlot(real, sim):
 def violinPlot(real, sim, prog):
     fig=plt.figure()
     ax = fig.add_subplot(111)
-    sim = sim['area_scaled']
+    if prog == '1': 
+        sim = sim['area_scaled']
+    elif prog == '2':
+        sim = sim['number']
     data = [real, sim]
     
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
