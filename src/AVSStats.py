@@ -41,10 +41,10 @@ def main(fileSelectOpt = True, manual = True):
         for _ in range(100):     #So that the user can run multiple tests
             print(">>Please select an option: ")
             print("[1]: Load your data")  ### Works for both size and number - verified
-            print("[2]: Calculate statistics on your data")   #### Needs to be updated to handle split data
+            print("[2]: Calculate statistics on your data")   #### Works for both size and number - verified
             print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Works for both size and number
-            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Needs to be updated to handle split data
-            print("[5]: Generate a Violin Plot")   ### Needs to be updated to handle split data
+            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works for size; needs to be updated for number
+            print("[5]: Generate a Violin Plot")   ### Works for size; needs to be updated for number
             print("[6]: Choose to analyze body size or body number")
             print("[0]: Exit Script")
             
@@ -100,10 +100,10 @@ def main(fileSelectOpt = True, manual = True):
                     programMode = input() 
 
             elif(userSelection == "4"):
-                qqPlot(real = real_slices, sim = sim_slices)
+                qqPlot_area(real = real_slices, sim = sim_slices)
 
             elif(userSelection == "5"):
-                violinPlot(real = real_slices, sim = sim_slices, prog = programMode)
+                violinPlot_area(real = real_slices, sim = sim_slices)
 
             elif(userSelection == "6"):
                 print('NOTE!! You will need to reload your data after this for it to be valid')
@@ -285,8 +285,8 @@ def findAverage_num(real, sim):
                         multi_results = pd.concat([multi_results, results], ignore_index= True)
     print("\nHere are the statistics for your simulated data:")
     print(multi_results)
-    with open('sim_body_statistics.csv', 'w') as f:  #Saving the simulated body statistics to a csv file for verfication
-        multi_results.to_csv(f, index = False)  
+    # with open('sim_body_statistics.csv', 'w') as f:  #Saving the simulated body statistics to a csv file for verfication
+    #     multi_results.to_csv(f, index = False)  
 
 
 def ksTest_area(real, sim):
@@ -363,11 +363,14 @@ def KS_heatmap(ks_results):
     plt.ylabel('sigma values')
     plt.show()
 
-def qqPlot(real, sim):
-
-
+def qqPlot_area(real, sim):
+    print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim['area_scaled']
-    #statsmodels.graphics.gofplots.qqplot_2samples(statsA, statsB, xlabel='Real Data', ylabel='Simulated Data')
+
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
     qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
@@ -377,23 +380,21 @@ def qqPlot(real, sim):
 #END OF qqPlot
 
 
-def violinPlot(real, sim, prog):
-    fig=plt.figure()
-    ax = fig.add_subplot(111)
-    if prog == '1': 
-        sim = sim['area_scaled']
-    elif prog == '2':
-        sim = sim['number']
+def violinPlot_area(real, sim):
+    print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+    sim = sim['area_scaled']
     data = [real, sim]
     
+    
+    fig=plt.figure()
+    ax = fig.add_subplot(111)   
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
-    
     ax.set_xlabel("Data Sets")
-    if prog == '1':
-        ax.set_ylabel("Body Crossectional Area (square nm)")
-    elif prog == '2':
-        ax.set_ylabel("Number of bodies per slice")
-    
+    ax.set_ylabel("Body Crossectional Area (square nm)")   
     plt.show()
 
 
