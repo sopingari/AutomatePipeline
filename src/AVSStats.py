@@ -43,8 +43,8 @@ def main(fileSelectOpt = True, manual = True):
             print("[1]: Load your data")  ### Works for both size and number - verified
             print("[2]: Calculate statistics on your data")   #### Works for both size and number - verified
             print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Works for both size and number
-            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works for size; needs to be updated for number
-            print("[5]: Generate a Violin Plot")   ### Works for size; needs to be updated for number
+            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works for both size and number
+            print("[5]: Generate a Violin Plot")    #### Works for both size and number
             print("[6]: Choose to analyze body size or body number")
             print("[0]: Exit Script")
             
@@ -100,10 +100,16 @@ def main(fileSelectOpt = True, manual = True):
                     programMode = input() 
 
             elif(userSelection == "4"):
-                qqPlot_area(real = real_slices, sim = sim_slices)
+                if programMode == "1":
+                    qqPlot_area(real = real_slices, sim = sim_slices)
+                elif programMode == "2":
+                    qqPlot_number(real = real_slices, sim = sim_slices) 
 
             elif(userSelection == "5"):
-                violinPlot_area(real = real_slices, sim = sim_slices)
+                if programMode == "1":
+                    violinPlot_area(real = real_slices, sim = sim_slices)
+                elif programMode == "2":
+                    violinPlot_number(real = real_slices, sim = sim_slices)
 
             elif(userSelection == "6"):
                 print('NOTE!! You will need to reload your data after this for it to be valid')
@@ -377,7 +383,24 @@ def qqPlot_area(real, sim):
     
     plt.show()
 
-#END OF qqPlot
+def qqPlot_number(real, sim):
+    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
+    print('- for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    number_mu = input("Input the number_mu you want to use: ")
+    number_sigma = input("Input the number_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+    sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+    sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+    sim = sim['number']
+
+    plotA = sm.ProbPlot(real)
+    plotB = sm.ProbPlot(sim)
+    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
+    
+    plt.show()
 
 
 def violinPlot_area(real, sim):
@@ -389,13 +412,34 @@ def violinPlot_area(real, sim):
     sim = sim['area_scaled']
     data = [real, sim]
     
-    
     fig=plt.figure()
     ax = fig.add_subplot(111)   
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
     ax.set_xlabel("Data Sets")
     ax.set_ylabel("Body Crossectional Area (square nm)")   
     plt.show()
+
+def violinPlot_number(real, sim):
+    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
+    print('- for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    number_mu = input("Input the number_mu you want to use: ")
+    number_sigma = input("Input the number_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+    sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+    sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+    sim = sim['number']
+    data = [real, sim]
+    
+    fig=plt.figure()
+    ax = fig.add_subplot(111)   
+    sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
+    ax.set_xlabel("Data Sets")
+    ax.set_ylabel("Body Number per Slice")   
+    plt.show()
+
 
 
  
