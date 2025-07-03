@@ -40,9 +40,9 @@ def main(fileSelectOpt = True, manual = True):
         programMode = input()
         for _ in range(100):     #So that the user can run multiple tests
             print(">>Please select an option: ")
-            print("[1]: Load your data")  ### Works for both size and number, I think  
+            print("[1]: Load your data")  ### Works for both size and number - verified
             print("[2]: Calculate statistics on your data")   #### Needs to be updated to handle split data
-            print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Needs a little more testing 
+            print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Works for both size and number
             print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Needs to be updated to handle split data
             print("[5]: Generate a Violin Plot")   ### Needs to be updated to handle split data
             print("[6]: Choose to analyze body size or body number")
@@ -61,11 +61,13 @@ def main(fileSelectOpt = True, manual = True):
                     programMode = input() 
             if(userSelection == "2"):
                 if programMode == "1":
+                    print(sim_slices.head())
                     try:
                         findAverage_size(real = real_slices, sim = sim_slices)
                     except:
                         loadDataMessage()
                 elif programMode == "2":
+                    print(sim_slices.head())
                     try:
                         findAverage_num(real = real_slices, sim = sim_slices)
                     except:
@@ -215,26 +217,35 @@ def pullData(dataFile, head = 0):
  
 
 def findAverage_size(real, sim):
-    sim = sim['area_scaled']
-    data_sets = [real, sim]
-    which_data = 0
-    for data in data_sets:
-        dataLength = len(data)
-        areaAverage = data.mean()
-        largestArea = data.max()
-        smallestArea = data.min()
-        stdDev = data.std()
-    
-        if which_data == 0:
-            print ("\nHere are the statistics for your real data:") 
-        else:
-            print("\nHere are the statistics for your simulated data:")
-        print(f"You have slices from {dataLength} bodies.")
-        print("Average Body Slice Area = %d" %(areaAverage))
-        print("Largest Body Slice Area = %d" %(largestArea))
-        print("Smallest Body Slice Area = %d" %(smallestArea))
-        print("Standard Deviation of data set = %d" %(stdDev))
-        which_data += 1
+    data = real   
+    # Summarizes the real data from the real slices
+    print ("\nHere are the statistics for your real data:") 
+    print(f"You have slices from {len(data)} bodies.")
+    print("Average Body Slice Area = %d" %(data.mean()))
+    print("Largest Body Slice Area = %d" %(data.max()))
+    print("Smallest Body Slice Area = %d" %(data.min()))
+    print("Standard Deviation of data set = %d" %(data.std()))
+
+    # Summarizes the simulated data from the simulated slices
+    multi_results = pd.DataFrame(columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev'])
+    mus = sorted(sim['size_mu'].value_counts().index.tolist())      # Extracts all of the different values of mu, sorted
+    sigmas = sorted(sim['size_sigma'].value_counts().index.tolist())      # Extracts all of the different values of sigma
+
+    for mu in mus:
+        split_data = sim.loc[sim['size_mu'] == mu]
+        for sigma in sigmas:
+            splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
+            data = splitter_data['area_scaled']
+            Length = len(data)
+            Average = data.mean()
+            Largest = data.max()
+            Smallest = data.min()
+            stdDev = data.std()
+            results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev'])
+            multi_results = pd.concat([multi_results, results], ignore_index= True)
+    print("\nHere are the statistics for your simulated data:")
+    print(multi_results)
+
 
 def findAverage_num(real, sim):
     data_sets = [real, sim]
