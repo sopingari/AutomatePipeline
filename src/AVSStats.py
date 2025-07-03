@@ -196,7 +196,7 @@ def loadDataNumber(fileSelectOpt):
                         sim_body_number['size_sigma'] = size_sigma_list  #Adding the size_sigma value to the dataframe
                         sim_body_number['number_mu'] = number_mu_list  #Adding the number_mu value  to the dataframe
                         sim_body_number['number_sigma'] = number_sigma_list  #Adding the number_sigma value to the dataframe
-                        print("single slice", sim_body_number.head())  #For verification  
+                        #print("single slice", sim_body_number.head())  #For verification  
                         sim_body_numbers = pd.concat([sim_body_numbers, sim_body_number], ignore_index = True)  # putting it all together
         print(sim_body_numbers.head())  #For verification
         # with open('sim_body_numbers.csv', 'w') as f:  #Saving the simulated body numbers to a csv file for verfication
@@ -227,7 +227,8 @@ def findAverage_size(real, sim):
     print("Standard Deviation of data set = %d" %(data.std()))
 
     # Summarizes the simulated data from the simulated slices
-    multi_results = pd.DataFrame(columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev'])
+    columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev']
+    multi_results = pd.DataFrame(columns = columns)
     mus = sorted(sim['size_mu'].value_counts().index.tolist())      # Extracts all of the different values of mu, sorted
     sigmas = sorted(sim['size_sigma'].value_counts().index.tolist())      # Extracts all of the different values of sigma
 
@@ -241,32 +242,51 @@ def findAverage_size(real, sim):
             Largest = data.max()
             Smallest = data.min()
             stdDev = data.std()
-            results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev'])
+            results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
             multi_results = pd.concat([multi_results, results], ignore_index= True)
     print("\nHere are the statistics for your simulated data:")
     print(multi_results)
 
 
 def findAverage_num(real, sim):
-    data_sets = [real, sim]
-    which_data = 0
-    for data in data_sets:
-        dataLength = len(data)
-        areaAverage = data.mean()
-        largestArea = data.max()
-        smallestArea = data.min()
-        stdDev = data.std()
+    data = real   
+    # Summarizes the real data from the real slices
+    print ("\nHere are the statistics for your real data:") 
+    print(f"You have slices from {len(data)} images.")
+    print("Average Body Number per Slice = %d" %(data.mean()))
+    print("Largest Body Number per Slice = %d" %(data.max()))
+    print("Smallest Body Number per Slice = %d" %(data.min()))
+    print("Standard Deviation of data set = %d" %(data.std()))
+
+    # Summarizes the simulated data from the simulated slices
+    sim_slices = sim
     
-        if which_data == 0:
-            print ("\nHere are the statistics for your real data:") 
-        else:
-            print("\nHere are the statistics for your simulated data:")
-        print(f"You have slices from {dataLength} images.")
-        print("Average Number of Bodies per Image = %d" %(areaAverage))
-        print("Largest Number of Bodies per Image = %d" %(largestArea))
-        print("Smallest Number of Bodies per Image = %d" %(smallestArea))
-        print("Standard Deviation of data set = %d" %(stdDev))
-        which_data += 1
+    size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())  #extracts all of the different values of mu, sorted
+    size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())
+    number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())
+    number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())
+    columns = ['size_mu', 'size_sigma', 'number_mu', 'number_sigma', 'length', 'average', 'largest', 'smallest', 'stdDev']
+    multi_results = pd.DataFrame(columns = columns)
+    for size_mu in size_mus: 
+            split_data = sim_slices.loc[sim_slices['size_mu'] == size_mu]  #splitting up the data
+            for size_sigma in size_sigmas:
+                split_data2 = split_data.loc[split_data['size_sigma'] == size_sigma]
+                for number_mu in number_mus:
+                    split_data3 = split_data2.loc[split_data2['number_mu'] == number_mu]
+                    for number_sigma in number_sigmas:
+                        split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
+                        data = split_slices['number']
+                        Length = len(data)
+                        Average = data.mean()
+                        Largest = data.max()
+                        Smallest = data.min()
+                        stdDev = data.std()
+                        results = pd.DataFrame([[size_mu, size_sigma, number_mu, number_sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
+                        multi_results = pd.concat([multi_results, results], ignore_index= True)
+    print("\nHere are the statistics for your simulated data:")
+    print(multi_results)
+    with open('sim_body_statistics.csv', 'w') as f:  #Saving the simulated body statistics to a csv file for verfication
+        multi_results.to_csv(f, index = False)  
 
 
 def ksTest_area(real, sim):
