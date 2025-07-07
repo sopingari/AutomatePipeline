@@ -225,6 +225,7 @@ def run_pipeline(cc3d = True, PIFF = False):
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
                             run_cc3d_script()
+                            run_SliceStats()
 
     print("--- Pipeline execution complete ---")
 

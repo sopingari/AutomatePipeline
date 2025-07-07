@@ -724,14 +724,12 @@ def write_body_size_combined_csv(runs_dir, run_id, args, df):
                 'radius', 
                 'volume',
                 'distance_from_center',
-                'nearest_neighbor_center_distance',
-                'nearest_neighbor_surface_distance',
-                'num_neighbors',
-                'local_density',
                 'distance_to_wall', 
                 'p_value', 
                 'Body_Radius_Mu', 
-                'Body_Radius_Sigma'
+                'Body_Radius_Sigma',
+                'Body_Number_Mu',
+                'Body_Number_Sigma'
             ])
             
             # Process and write spheroid data first
@@ -751,7 +749,9 @@ def write_body_size_combined_csv(runs_dir, run_id, args, df):
                     metrics['distance_to_wall'],
                     spheroid.p,
                     args.mu,
-                    args.sigma
+                    args.sigma,
+                    args.mu_body_number,
+                    args.sigma_body_number
                 ])
         logging.info(f"Updated combined body size CSV file: {body_output_file}")
         return body_output_file
@@ -901,14 +901,17 @@ def main(args):
     if PIFF == 1 or PIFF == 2:
         generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
 
+        # Copy output.piff to the run_folder
+        piff_dest = os.path.join(run_folder, os.path.basename(filename))
+        shutil.copy(filename, piff_dest)
+
         cc3d = './CompuCell3D/cc3dSimulation/Simulation'
         if os.path.exists(cc3d):
             shutil.copy(filename, os.path.join(cc3d, filename))
             logging.info(f"Copied PIFF file to CC3D simulation folder")
-        
-   
+
     #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
-    # Also add statistics for that run as a csv to that folder.  
+    # Also add statistics for that run as a csv to that folder.
     if PIFF == 2:
         run_subfolder = os.path.join(run_folder, run_id)
         os.makedirs(run_subfolder)

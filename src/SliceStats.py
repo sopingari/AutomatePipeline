@@ -10,6 +10,7 @@ from tkinter.filedialog import askopenfilename
 import numpy as np
 import pandas as pd
 from skimage import measure 
+import shutil
 
 ############################################################################################################
 #   Eastern Michigan University
@@ -26,8 +27,8 @@ from skimage import measure
 ''' Todo Dec. 2024:
 1. Fix lines 68-82: right now they are setting the slice size based on the body cluster, not the wall. Make them read the vacuole size from the combined csv made by vacuole_gen
 2. Get values of mu and sigma for body size and number from Vacuole_gen csv and add those to the output csv (line 399))
-3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true (And in general, mass runs need to not ask for any user input).  
-4. Fix error handling for vacuole slice limit (line 135) - should ouput nothing into the csv file.  But could print a message saying that this vacuole is being skipped because too small.  
+DONE 3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true 
+4. Fix error handling for vacuole slice limit (line 135)
 5. Add option to take serial slices?'''
 
 # paramsFile is used to keep track of several variables used by multiple scripts.
@@ -36,6 +37,20 @@ paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 
 def main(fileSelectOpt, MassRunCheck, inputPiff):
     initialTime = time.asctime(time.localtime(time.time()))
+
+    # Find the latest run folder (time-stamped)
+    runs_dir = "./runs/"
+    subfolders = [f.path for f in os.scandir(runs_dir) if f.is_dir()]
+    if not subfolders:
+        print("No run folders found in ./runs/. Exiting.")
+        return
+    current_run_folder = max(subfolders, key=os.path.getmtime)
+    slice_measurements_path = os.path.join(current_run_folder, "sliceMeasurements.csv")
+    slice_measurements_copy_path = "sliceData/sliceMeasurements.csv"
+
+    # Reset the file at the start of the run
+    if os.path.exists(slice_measurements_path):
+        os.remove(slice_measurements_path)
 
     if MassRunCheck:
         # Directly use the expected PIFF file from CC3D
@@ -84,7 +99,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     centerX = int(round(centerX))
     centerY = int(round(centerY))
     centerZ = int(round(centerZ))
-    wallRadius = int(float(modelParams["Wall_Radius_mu"]))
+    wallRadius = int(float(modelParams.get("Vacuole_Inner_Radius", 0)) / scaleFactor)
  
     print(f"Using Vacuole Center as Slice Reference: X={centerX}, Y={centerY}, Z={centerZ}")
 
@@ -94,6 +109,11 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     print("\tunScaledVacMin: %d\n" % unScaledVacMin)
     print("\tunScaledminBodyRadius: %d\n" % unScaledminBodyRadius)
     
+    size_mu = modelParams.get("Body_Radius_Mu", "")
+    size_sigma = modelParams.get("Body_Radius_Sigma", "")
+    number_mu = modelParams.get("Body_Number_Mu", "")
+    number_sigma = modelParams.get("Body_Number_Sigma", "")
+
     if not MassRunCheck:
         print(">>Would you like to use these parameters?[y/n]")
         paramSelect = input()
@@ -161,17 +181,23 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     
     if len(lineCollection) == 0:
         print("No bodies found in slice")
-        add_empty_line(initialTime)
+        add_empty_line(initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path)
         return
         
     overalldfsk = build_projection(lineCollection, wallRadius, recogLimit)
     
     if overalldfsk is None or overalldfsk.empty:
         print("No bodies met size criteria")
-        add_empty_line(initialTime)
+        add_empty_line(initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path)
     else:    
         overalldfsk_new = split_duplicates(overalldfsk, recogLimit)
-        to_nm(overalldfsk_new, scaleFactor, initialTime)
+        to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path)
+
+    try:
+        shutil.copyfile(slice_measurements_path, slice_measurements_copy_path)
+        print(f"Copied {slice_measurements_path} to {slice_measurements_copy_path}")
+    except Exception as e:
+        print(f"Could not copy sliceMeasurements to sliceData: {e}")
 
 def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor): 
     '''Sorts the pixels within the PIFF file into wallText and bodyText.
@@ -349,7 +375,7 @@ def split_duplicates(overalldfsk, recogLimit):
             overalldfsk_new = overalldfsk_big_enough
     return overalldfsk_new
     
-def to_nm(overalldfsk_new, scaleFactor, initialTime):
+def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, output_path):
     '''Adjusts the area and perimeter by the scale factor to get actual nm values then exports the statistics we want'''
     overalldfsk_new = overalldfsk_new.copy()
     overalldfsk_new.loc[:, "area_scaled"] = scaleFactor**2 * overalldfsk_new["area"]
@@ -358,16 +384,26 @@ def to_nm(overalldfsk_new, scaleFactor, initialTime):
     overalldfsk_new.loc[:, "circularity"] = 4 * math.pi * overalldfsk_new["area_scaled"] / (overalldfsk_new["perimeter_scaled"]**2)
     overalldfsk_new.loc[:, "time"] = initialTime
     overalldfsk_new.rename(columns={"imgnum": "body_number"}, inplace=True)
-    finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR"]]
+    overalldfsk_new["size_mu"] = size_mu
+    overalldfsk_new["size_sigma"] = size_sigma
+    overalldfsk_new["number_mu"] = number_mu
+    overalldfsk_new["number_sigma"] = number_sigma
+    finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma"]]
     print(finalOutput)
-    finalOutput.to_csv("sliceData/sliceMeasurements.csv", mode='a')  
+    write_header = not os.path.exists(output_path)
+    finalOutput.to_csv(output_path, mode='a', header=write_header, index=False)
 
-def add_empty_line(initialTime):
+def add_empty_line(initialTime, size_mu, size_sigma, number_mu, number_sigma, output_path):
     '''If the slice is empty, adds a line of NAs to the frame so that AVSStats can count it as an image with no bodies'''
-    data_NA = pd.DataFrame(np.nan, index=range(1), columns=["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR"])
+    data_NA = pd.DataFrame(np.nan, index=range(1), columns=["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma"])
     data_NA['time'] = initialTime
+    data_NA['size_mu'] = size_mu
+    data_NA['size_sigma'] = size_sigma
+    data_NA['number_mu'] = number_mu
+    data_NA['number_sigma'] = number_sigma
     print(data_NA)
-    data_NA.to_csv("sliceData/sliceMeasurements.csv", mode='a')
+    write_header = not os.path.exists(output_path)
+    data_NA.to_csv(output_path, mode='a', header=write_header, index=False)
 
 def load_parameters_from_file(file_path):
     """
@@ -399,8 +435,11 @@ def load_parameters_from_file(file_path):
                 latest_row = df.iloc[-1]
                 parameters["Body_Radius_Mu"] = float(latest_row["Body_Radius_Mu"])
                 parameters["Body_Radius_Sigma"] = float(latest_row["Body_Radius_Sigma"])
+                parameters["Body_Number_Mu"] = float(latest_row.get("Body_Number_Mu", ""))
+                parameters["Body_Number_Sigma"] = float(latest_row.get("Body_Number_Sigma", ""))
                 parameters["Vacuole_x"] = float(latest_row["Vacuole_x"])
-                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}")
+                parameters["Vacuole_Inner_Radius"] = float(latest_row.get("Vacuole_Inner_Radius", 0))
+                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}")
             else:
                 print(f"Warning: {vacuole_csv_path} exists but is empty.")
         else:
