@@ -295,7 +295,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   else:
     ofv_original = 'No optimization'
     ofv_final = 'No optimization'
-    
+    compactness = 'No optimization'    
        
   df['bodyType'] = "APB"  #MV - Dataframe Label
     
