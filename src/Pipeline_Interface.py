@@ -22,6 +22,7 @@ def main():
         print("\t[4]: Run CC3D alone in headless mode")
         print("\t[5]: Run Slice Stats alone")
         print("\t[6]: Run AVS Stats alone")
+        print("\t[7]: Run Slice Stats on the vacuole_gen output, without CC3D, for testing only")
         print("\t[9]: Read the ReadMe file")
         print("\t[0]: Exit AVS")
 
@@ -42,6 +43,8 @@ def main():
             run_SliceStats()
         elif scriptChoice == "6":
             run_AVSStats()
+        elif scriptChoice == "7":
+            run_pipeline(cc3d = False, PIFF = 1, SliceTest = True) # For testing SliceStats
         elif scriptChoice == "9":
             read_readme()
         else:
@@ -73,7 +76,7 @@ def get_list_to_iterate_over(start, end, step,endpoint=True):
   return np.linspace(start, end, num=int(round(n)), endpoint=endpoint, dtype=float).tolist()
 
 
-def run_pipeline(cc3d = True, PIFF = False):
+def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     """
     Run pipeline iterating over Body Number and Body Size using nested loops.
     """
@@ -227,6 +230,13 @@ def run_pipeline(cc3d = True, PIFF = False):
                             run_cc3d_script()
                             run_SliceStats()
 
+                        
+                        #Test SliceStats (if called for)
+                        if SliceTest == True:
+                            run_SliceStatsTest()
+                        
+
+
     print("--- Pipeline execution complete ---")
 
 
@@ -300,6 +310,16 @@ def run_SliceStats():
         print("SliceStats executed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running SliceStats.py: {e}")
+
+def run_SliceStatsTest():
+    print("Running SliceStatsTest...")
+    command = [sys.executable, 'SliceStatsTest.py']
+
+    try:
+        subprocess.run(command, check=True)
+        print("SliceStatsTest executed successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running SliceStatsTest.py: {e}")
 
 
 def run_AVSStats():
