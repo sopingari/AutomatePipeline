@@ -145,7 +145,13 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     if not params:
         raise ValueError("Failed to load parameters from Model_Parameters.txt.")
 
-
+  
+    # Initialize and reset sliceMeasurements.csv global copy 
+    slice_measurements_copy_path = "sliceData/sliceMeasurements.csv"
+    if os.path.exists(slice_measurements_copy_path):
+        os.remove(slice_measurements_copy_path)
+    
+    
     # Validate loop parameters to prevent infinite loops 
     assert float(params["Body_number_mu_step"]) > 0, "Body_number_mu_step must be > 0"
     assert float(params["Body_number_ending_mu"]) >= float(params["Body_number_starting_mu"]), "Body_number_ending_mu must be >= than Body_number_starting_mu."

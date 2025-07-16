@@ -48,10 +48,6 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     slice_measurements_path = os.path.join(current_run_folder, "sliceMeasurements.csv")
     slice_measurements_copy_path = "sliceData/sliceMeasurements.csv"
 
-    # Reset the file at the start of the run
-    if os.path.exists(slice_measurements_path):
-        os.remove(slice_measurements_path)
-
     if MassRunCheck:
         # Directly use the expected PIFF file from CC3D
         inputName = "./Output/10_24Simulation000.piff"

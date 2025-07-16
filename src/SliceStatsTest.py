@@ -48,10 +48,6 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     slice_measurements_path = os.path.join(current_run_folder, "sliceMeasurements.csv")
     slice_measurements_copy_path = "sliceData/sliceMeasurements.csv"
 
-    # Reset the file at the start of the run
-    if os.path.exists(slice_measurements_path):
-        os.remove(slice_measurements_path)
-
     if MassRunCheck:
         # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)  
         inputName = "./CompuCell3D/cc3dSimulation/Simulation/output.piff"
@@ -103,11 +99,11 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
  
     print(f"Using Vacuole Center as Slice Reference: X={centerX}, Y={centerY}, Z={centerZ}")
 
-    print("Current Model Parameters:\n")
-    print("\tScale_Factor: %d\n" % scaleFactor)
-    print("\tunScaledSliceThickness: %d\n" % unScaledSliceThickness)
-    print("\tunScaledVacMin: %d\n" % unScaledVacMin)
-    print("\tunScaledminBodyRadius: %d\n" % unScaledminBodyRadius)
+    print("Current Model Parameters:")
+    print("\tScale_Factor: %d" % scaleFactor)
+    print("\tunScaledSliceThickness: %d" % unScaledSliceThickness)
+    print("\tunScaledVacMin: %d" % unScaledVacMin)
+    print("\tunScaledminBodyRadius: %d" % unScaledminBodyRadius)
     
     size_mu = modelParams.get("Body_Radius_Mu", "")
     size_sigma = modelParams.get("Body_Radius_Sigma", "")
