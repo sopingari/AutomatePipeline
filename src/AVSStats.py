@@ -8,6 +8,7 @@ import pandas as pd
 from statsmodels.graphics.gofplots import qqplot_2samples
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+import os as os
 import seaborn as sns
 
 ############################################################################################################
@@ -51,9 +52,9 @@ def main(fileSelectOpt = True, manual = True):
             userSelection = input()
             if(userSelection == "1"):
                 if programMode == "1":
-                    real_slices, sim_slices = loadDataArea(fileSelectOpt)
+                    real_slices, sim_slices, directory = loadDataArea(fileSelectOpt)
                 elif programMode == "2":
-                    real_slices, sim_slices = loadDataNumber(fileSelectOpt)
+                    real_slices, sim_slices, directory = loadDataNumber(fileSelectOpt)
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -63,13 +64,13 @@ def main(fileSelectOpt = True, manual = True):
                 if programMode == "1":
                     print(sim_slices.head())
                     try:
-                        findAverage_size(real = real_slices, sim = sim_slices)
+                        findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
                     except:
                         loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
                     try:
-                        findAverage_num(real = real_slices, sim = sim_slices)
+                        findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
                     except:
                         loadDataMessage()
                 else: 
@@ -81,14 +82,14 @@ def main(fileSelectOpt = True, manual = True):
             elif(userSelection == "3"):
                 if programMode == "1":
                     try:
-                        KS_results = multiKS_area(real = real_slices, sim = sim_slices)
+                        KS_results = multiKS_area(real = real_slices, sim = sim_slices, directory = directory)
                         print(KS_results)
                         KS_heatmap(KS_results)
                     except:
                         loadDataMessage()
                 elif programMode == "2":
                     # try:
-                    KS_results = multiKS_number(real = real_slices, sim = sim_slices)
+                    KS_results = multiKS_number(real = real_slices, sim = sim_slices, directory = directory)
                     print(KS_results)
                     KS_heatmap(KS_results)
                     # except:
@@ -131,6 +132,7 @@ def loadDataArea(fileSelectOpt):
         print("(The file selection screen may appear BEHIND your current application)")
         Tk().withdraw()
         inputFile = askopenfilename()
+        directory = os.path.dirname(inputFile)  #Getting the directory of the input file, to output to later. 
         real_slices = pullData(inputFile, head = None) 
         real_slices.columns = ['image', 'area']
         real_slices = real_slices['area']
@@ -144,7 +146,7 @@ def loadDataArea(fileSelectOpt):
         sim_slices = sim_slices[['area_scaled', 'size_mu', 'size_sigma']].astype(float) #So we can filter by mu or sigma later
         print(sim_slices.head()) 
         print ('Your body area data has been loaded and is ready to use')
-        return real_slices, sim_slices
+        return real_slices, sim_slices, directory
 
 def loadDataNumber(fileSelectOpt):
     if fileSelectOpt  == True:
@@ -152,6 +154,7 @@ def loadDataNumber(fileSelectOpt):
         print("(The file selection screen may appear BEHIND your current application)")
         Tk().withdraw()
         inputFile = askopenfilename()
+        directory = os.path.dirname(inputFile)  #Getting the directory of the input file, to output to later. 
         real_slices = pullData(inputFile, head = None) 
         real_slices.columns = ['image', 'number']
         # Adding zeros for the empty images. Verified to work.  
@@ -208,7 +211,7 @@ def loadDataNumber(fileSelectOpt):
         # with open('sim_body_numbers.csv', 'w') as f:  #Saving the simulated body numbers to a csv file for verfication
         #     sim_body_numbers.to_csv(f, index = False)
         print ('Your body number data has been loaded and is ready to use')
-        return real_body_number, sim_body_numbers
+        return real_body_number, sim_body_numbers, directory
 
 def loadDataMessage():
     print('Remember that you must load your data before performing a test, and it must be in the proper format')
@@ -222,7 +225,7 @@ def pullData(dataFile, head = 0):
     return slices
  
 
-def findAverage_size(real, sim):
+def findAverage_size(real, sim, directory):
     data = real   
     # Summarizes the real data from the real slices
     print ("\nHere are the statistics for your real data:") 
@@ -232,9 +235,16 @@ def findAverage_size(real, sim):
     print("Smallest Body Slice Area = %d" %(data.min()))
     print("Standard Deviation of data set = %d" %(data.std()))
 
+    # Outputting the real body area statistics to a csv file
+    columns_real = ['length', 'average', 'largest', 'smallest', 'stdDev']
+    real_results = pd.DataFrame([[len(data), data.mean(), data.max(), data.min(), data.std()]], columns = columns_real)
+    with open(os.path.join(directory, 'real_body_size_statistics.csv'), 'w') as f:  
+        real_results.to_csv(f, index = False) 
+    print("Saved real body area statistics to 'real_body_size_statistics.csv' in the same directory as your original real body data")
+
     # Summarizes the simulated data from the simulated slices
-    columns = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev']
-    multi_results = pd.DataFrame(columns = columns)
+    columns_sim = ['mu', 'sigma', 'length', 'average', 'largest', 'smallest', 'stdDev']
+    multi_results = pd.DataFrame(columns = columns_sim)
     mus = sorted(sim['size_mu'].value_counts().index.tolist())      # Extracts all of the different values of mu, sorted
     sigmas = sorted(sim['size_sigma'].value_counts().index.tolist())      # Extracts all of the different values of sigma
 
@@ -248,13 +258,16 @@ def findAverage_size(real, sim):
             Largest = data.max()
             Smallest = data.min()
             stdDev = data.std()
-            results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
+            results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns_sim)
             multi_results = pd.concat([multi_results, results], ignore_index= True)
     print("\nHere are the statistics for your simulated data:")
     print(multi_results)
+    with open(os.path.join(directory, 'sim_body_size_statistics.csv'), 'w') as f:  
+        multi_results.to_csv(f, index = False) 
+    print("Saved simulated body area statistics to 'sim_body_size_statistics.csv' in the same directory as your original real body data")
 
 
-def findAverage_num(real, sim):
+def findAverage_num(real, sim, directory):
     data = real   
     # Summarizes the real data from the real slices
     print ("\nHere are the statistics for your real data:") 
@@ -263,6 +276,13 @@ def findAverage_num(real, sim):
     print("Largest Body Number per Slice = %d" %(data.max()))
     print("Smallest Body Number per Slice = %d" %(data.min()))
     print("Standard Deviation of data set = %d" %(data.std()))
+
+    # Outputting the real body number statistics to a csv file
+    columns_real = ['length', 'average', 'largest', 'smallest', 'stdDev']
+    real_results = pd.DataFrame([[len(data), data.mean(), data.max(), data.min(), data.std()]], columns = columns_real)
+    with open(os.path.join(directory, 'real_body_number_statistics.csv'), 'w') as f:  
+        real_results.to_csv(f, index = False) 
+    print("Saved real body area statistics to 'real_body_number_statistics.csv' in the same directory as your original real body data")
 
     # Summarizes the simulated data from the simulated slices
     sim_slices = sim
@@ -291,8 +311,9 @@ def findAverage_num(real, sim):
                         multi_results = pd.concat([multi_results, results], ignore_index= True)
     print("\nHere are the statistics for your simulated data:")
     print(multi_results)
-    # with open('sim_body_statistics.csv', 'w') as f:  #Saving the simulated body statistics to a csv file for verfication
-    #     multi_results.to_csv(f, index = False)  
+    with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
+        multi_results.to_csv(f, index = False) 
+    print("Saved simulated body area statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
 
 
 def ksTest_area(real, sim):
@@ -307,7 +328,7 @@ def ksTest_number(real, sim):
     #print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
     return ks
 
-def multiKS_area(real, sim):
+def multiKS_area(real, sim, directory):
     print(sim.head())
     mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
     mu_list = sorted(mus) 
@@ -325,10 +346,13 @@ def multiKS_area(real, sim):
             ks = ksTest_area(real, splitter_data)
             ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
-    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')        
+    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')     
+    with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
+        sorted_ks_results.to_csv(f, index = False)     
+    print("Saved KS results to 'ks_results_area.csv' in the same directory as your original real body data")
     return sorted_ks_results 
 
-def multiKS_number(real, sim):
+def multiKS_number(real, sim, directory):
     size_mu = input("Input the size mu you want to use (run the program in size mode to find this): ")
     size_sigma = input("Input the size sigma you want to use (run the program in size mode to find this): ")
     print(sim.head())
@@ -356,7 +380,10 @@ def multiKS_number(real, sim):
             ks = ksTest_number(real, splitter_data)
             ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
-    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')        
+    sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
+    with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
+        sorted_ks_results.to_csv(f, index = False)
+    print("Saved KS results to 'ks_results_number.csv' in the same directory as your original real body data")       
     return sorted_ks_results 
 
 def KS_heatmap(ks_results):
