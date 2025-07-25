@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 from skimage import measure 
 import shutil
+import logging
+from datetime import datetime
 
 ############################################################################################################
 #   Eastern Michigan University
@@ -51,8 +53,8 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     
     #Set up logging, using the log file in the latest run folder
     log_file = os.path.join(current_run_folder, f'run.log')
-    #logging.basicConfig(filename=log_file, level=logging.INFO,
-                        #format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename=log_file, level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s')
 
     if MassRunCheck:
         # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)  
@@ -215,7 +217,7 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     
     print(f"Opening file: {inputName}")
     print(f"Looking for slice at coordinate: {sliceCoord}")
-    loggin.info(f"Looking for slice at coordinate: {sliceCoord}")
+    logging.info(f"Looking for slice at coordinate: {sliceCoord}")
     
     inStream = open(inputName, "r")
     
@@ -402,7 +404,7 @@ def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number
     overalldfsk_new["number_mu"] = number_mu
     overalldfsk_new["number_sigma"] = number_sigma
     finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma"]]
-    print(finalOutput)
+    #print(finalOutput)
     write_header = not os.path.exists(output_path)
     finalOutput.to_csv(output_path, mode='a', header=write_header, index=False)
 
