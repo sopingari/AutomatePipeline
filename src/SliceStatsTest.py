@@ -35,6 +35,7 @@ DONE 3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = tr
 paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 # paramsFile = 'src/attributes/Model_Parameters.txt'   # For Windows
 
+
 def main(fileSelectOpt, MassRunCheck, inputPiff):
     initialTime = time.asctime(time.localtime(time.time()))
 
@@ -47,6 +48,11 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     current_run_folder = max(subfolders, key=os.path.getmtime)
     slice_measurements_path = os.path.join(current_run_folder, "sliceMeasurements.csv")
     slice_measurements_copy_path = "sliceData/sliceMeasurements.csv"
+    
+    #Set up logging, using the log file in the latest run folder
+    log_file = os.path.join(current_run_folder, f'run.log')
+    #logging.basicConfig(filename=log_file, level=logging.INFO,
+                        #format='%(asctime)s - %(levelname)s - %(message)s')
 
     if MassRunCheck:
         # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)  
@@ -98,12 +104,13 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     wallRadius = int(float(modelParams.get("Vacuole_Inner_Radius", 0)) / scaleFactor)
  
     print(f"Using Vacuole Center as Slice Reference: X={centerX}, Y={centerY}, Z={centerZ}")
+    logging.info(f"Using Vacuole Center as Slice Reference: X={centerX}, Y={centerY}, Z={centerZ}")
 
-    print("Current Model Parameters:")
-    print("\tScale_Factor: %d" % scaleFactor)
-    print("\tunScaledSliceThickness: %d" % unScaledSliceThickness)
-    print("\tunScaledVacMin: %d" % unScaledVacMin)
-    print("\tunScaledminBodyRadius: %d" % unScaledminBodyRadius)
+    logging.info("Current Model Parameters:")
+    logging.info("\tScale_Factor: %d" % scaleFactor)
+    logging.info("\tunScaledSliceThickness: %d" % unScaledSliceThickness)
+    logging.info("\tunScaledVacMin: %d" % unScaledVacMin)
+    logging.info("\tunScaledminBodyRadius: %d" % unScaledminBodyRadius)
     
     size_mu = modelParams.get("Body_Radius_Mu", "")
     size_sigma = modelParams.get("Body_Radius_Sigma", "")
@@ -124,7 +131,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             centerX = int(input())
 
     vacMin = (unScaledVacMin / scaleFactor)
-    print("Default slice recognition limit (radius) = %d units" % vacMin)
+    logging.info("Default slice recognition limit (radius) = %d units" % vacMin)
     
     if not MassRunCheck:
         print(">>Would you like to use this default minimum vacuole slice threshold?[y/n]")
@@ -145,6 +152,9 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     
     print(f"Adjusted valid slice range: {minX} to {maxX}")
     print(f"Computed centerX: {centerX}, min_x: {min_x}, max_x: {max_x}")
+    
+    logging.info(f"Adjusted valid slice range: {minX} to {maxX}")
+    logging.info(f"Computed centerX: {centerX}, min_x: {min_x}, max_x: {max_x}")
 
     sliceCoord = -1
     if MassRunCheck:
@@ -171,7 +181,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     # Adjust recognition limit based on body size
     minBodyRadius = (unScaledminBodyRadius / scaleFactor)
     recogLimit = math.pi * (minBodyRadius**2)
-    print(f"Recognition limit: {recogLimit}")
+    logging.info(f"Recognition limit: {recogLimit}")
         
     lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor)
     
@@ -205,6 +215,7 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     
     print(f"Opening file: {inputName}")
     print(f"Looking for slice at coordinate: {sliceCoord}")
+    loggin.info(f"Looking for slice at coordinate: {sliceCoord}")
     
     inStream = open(inputName, "r")
     
@@ -242,6 +253,10 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     print(f"Total lines read: {total_lines}")
     print(f"Body lines found: {body_lines}")
     print(f"X-coordinate range in file: {min_x} to {max_x}")
+    
+    logging.info(f"Total lines read: {total_lines}")
+    logging.info(f"Body lines found: {body_lines}")
+    logging.info(f"X-coordinate range in file: {min_x} to {max_x}")
            
     bodySliceNums = []   
     bodySliceVolCounts = []  
@@ -250,9 +265,9 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     sliceThickness = unScaledSliceThickness / scaleFactor
     HalfSliceThickness = round((sliceThickness - 1) / 2)
     
-    print(f"Slice thickness: {sliceThickness}")
-    print(f"Half slice thickness: {HalfSliceThickness}")
+    logging.info(f"Slice thickness: {sliceThickness}")
     print(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
+    logging.info(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
 
     bodies_in_slice = 0
     for bodyEntry in bodyText:
@@ -275,6 +290,8 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     
     print(f"Bodies found in slice range: {bodies_in_slice}")
     print(f"Unique bodies collected: {len(lineCollection)}")
+    logging.info(f"Bodies found in slice range: {bodies_in_slice}")
+    logging.info(f"Unique bodies collected: {len(lineCollection)}")
     return lineCollection
 
 def build_projection(lineCollection, wallRadius, recogLimit):
@@ -299,8 +316,8 @@ def build_projection(lineCollection, wallRadius, recogLimit):
     y_size = int(max_y - min_y + 3)  # +3 for padding
     z_size = int(max_z - min_z + 3)  # +3 for padding
     
-    print(f"Array dimensions: {y_size} x {z_size}")
-    print(f"Coordinate ranges: y={min_y} to {max_y}, z={min_z} to {max_z}")
+    logging.info(f"Array dimensions: {y_size} x {z_size}")
+    logging.info(f"Coordinate ranges: y={min_y} to {max_y}, z={min_z} to {max_z}")
 
     for array in lineCollection:  
         index2 = 0
