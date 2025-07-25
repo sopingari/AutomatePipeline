@@ -153,10 +153,8 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     maxX = int(centerX + diamRangeVar)
     
     print(f"Adjusted valid slice range: {minX} to {maxX}")
-    print(f"Computed centerX: {centerX}, min_x: {min_x}, max_x: {max_x}")
     
     logging.info(f"Adjusted valid slice range: {minX} to {maxX}")
-    logging.info(f"Computed centerX: {centerX}, min_x: {min_x}, max_x: {max_x}")
 
     sliceCoord = -1
     if MassRunCheck:
