@@ -76,16 +76,16 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             inputName = input()
 
     # Scan file to get x-coordinate range from Body entries
-    with open(inputName, "r") as f:
-        min_x = float('inf')
-        max_x = float('-inf')
-        for line in f:
-            data = line.split()
-            if len(data) >= 4 and data[1] == "Body":
-                x1 = float(data[2])
-                x2 = float(data[3])
-                min_x = min(min_x, x1, x2)
-                max_x = max(max_x, x1, x2)
+    # with open(inputName, "r") as f:
+    #     min_x = float('inf')
+    #     max_x = float('-inf')
+    #     for line in f:
+    #         data = line.split()
+    #         if len(data) >= 4 and data[1] == "Body":
+    #             x1 = float(data[2])
+    #             x2 = float(data[3])
+    #             min_x = min(min_x, x1, x2)
+    #             max_x = max(max_x, x1, x2)
 
     print("Grabbing AVS Model Parameters...\n")
     modelParams = load_parameters_from_file(paramsFile)
@@ -133,7 +133,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             centerX = int(input())
 
     vacMin = (unScaledVacMin / scaleFactor)
-    logging.info("Default slice recognition limit (radius) = %d units" % vacMin)
+    logging.info("Default slice recognition limit (radius) = %d pixels" % vacMin)
     
     if not MassRunCheck:
         print(">>Would you like to use this default minimum vacuole slice threshold?[y/n]")
@@ -149,8 +149,8 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         print("\n!!!Using full coordinate range due to small wall radius")
         
     # Adjust minX and maxX using vacuole center and wall radius
-    minX = max(int(centerX - diamRangeVar), int(min_x))
-    maxX = min(int(centerX + diamRangeVar), int(max_x))
+    minX = int(centerX - diamRangeVar)
+    maxX = int(centerX + diamRangeVar)
     
     print(f"Adjusted valid slice range: {minX} to {maxX}")
     print(f"Computed centerX: {centerX}, min_x: {min_x}, max_x: {max_x}")
@@ -183,7 +183,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     # Adjust recognition limit based on body size
     minBodyRadius = (unScaledminBodyRadius / scaleFactor)
     recogLimit = math.pi * (minBodyRadius**2)
-    logging.info(f"Recognition limit: {recogLimit}")
+    logging.info(f"Body Recognition limit (area): {recogLimit}")
         
     lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor)
     
