@@ -9,6 +9,7 @@ import numpy as np
 import csv
 import pandas as pd
 import logging
+import shutil
 
     
 def main():
@@ -92,6 +93,10 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     # Create a new folder for this run
     run_folder = os.path.join(runs_dir, run_id)
     os.makedirs(run_folder)
+    
+    # Copy the parameters file into the run folder, for record keeping
+    param_dest = os.path.join(run_folder, os.path.basename("Model_Parameters.txt"))
+    shutil.copy("./attributes/Model_Parameters.txt", param_dest)   
 
     #Intializing headers for vacuole data output csv file
     vac_output_file = os.path.join(run_folder, 'Vacuole_Data_combined.csv')
