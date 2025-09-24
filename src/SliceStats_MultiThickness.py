@@ -181,7 +181,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         slice_measurements_path = os.path.join(current_run_folder, f"sliceMeasurements_{thickness}.csv")
         slice_measurements_copy_path = os.path.join("sliceData", f"sliceMeasurements_{thickness}.csv")
             
-        lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor)
+        lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
         
         if len(lineCollection) == 0:
             print("No bodies found in slice")
@@ -203,7 +203,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         except Exception as e:
             print(f"Could not copy sliceMeasurements to sliceData: {e}")
 
-def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor): 
+def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed): 
     '''Sorts the pixels within the PIFF file into wallText and bodyText.
        The lines within bodyText that fall within the slice are sorted into lineCollection.'''  
     wallText = []   
