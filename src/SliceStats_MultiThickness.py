@@ -181,7 +181,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         slice_measurements_path = os.path.join(current_run_folder, f"sliceMeasurements_{thickness}.csv")
         slice_measurements_copy_path = os.path.join("sliceData", f"sliceMeasurements_{thickness}.csv")
             
-        lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
+        lineCollection, HalfSliceThickness = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
         
         if len(lineCollection) == 0:
             print("No bodies found in slice")
@@ -195,7 +195,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
             add_empty_line(initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path)
         else:    
             overalldfsk_new = split_duplicates(overalldfsk, recogLimit)
-            to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path)
+            to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, slice_measurements_path, HalfSliceThickness)
 
         try:
             shutil.copyfile(slice_measurements_path, slice_measurements_copy_path)
@@ -299,7 +299,7 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
     print(f"Unique bodies collected: {len(lineCollection)}")
     logging.info(f"Bodies found in slice range: {bodies_in_slice}")
     logging.info(f"Unique bodies collected: {len(lineCollection)}")
-    return lineCollection
+    return lineCollection, HalfSliceThickness
 
 def build_projection(lineCollection, wallRadius, recogLimit):
     '''Creates a projection of each body slice and analyzes its properties'''
@@ -395,7 +395,7 @@ def split_duplicates(overalldfsk, recogLimit):
             overalldfsk_new = overalldfsk_big_enough
     return overalldfsk_new
     
-def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, output_path):
+def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number_mu, number_sigma, output_path, HalfSliceThickness):
     '''Adjusts the area and perimeter by the scale factor to get actual nm values then exports the statistics we want'''
     overalldfsk_new = overalldfsk_new.copy()
     overalldfsk_new.loc[:, "area_scaled"] = scaleFactor**2 * overalldfsk_new["area"]
@@ -408,7 +408,8 @@ def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number
     overalldfsk_new["size_sigma"] = size_sigma
     overalldfsk_new["number_mu"] = number_mu
     overalldfsk_new["number_sigma"] = number_sigma
-    finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma"]]
+    overalldfsk_new["HalfSliceThickness"] = HalfSliceThickness
+    finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma", "HalfSliceThickness"]]
     #print(finalOutput)
     write_header = not os.path.exists(output_path)
     finalOutput.to_csv(output_path, mode='a', header=write_header, index=False)
