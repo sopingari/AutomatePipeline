@@ -26,12 +26,6 @@ from datetime import datetime
 #   within this slice are then analyzed to determine their relative areas. This area data is then recorded
 #   for later compilation and statistical analysis.
 ############################################################################################################
-''' Todo Dec. 2024:
-1. Fix lines 68-82: right now they are setting the slice size based on the body cluster, not the wall. Make them read the vacuole size from the combined csv made by vacuole_gen
-2. Get values of mu and sigma for body size and number from Vacuole_gen csv and add those to the output csv (line 399))
-DONE 3. Make it automatically read the CC3D PIFF-dumped file when mass-runs = true 
-4. Fix error handling for vacuole slice limit (line 135)
-5. Add option to take serial slices?'''
 
 # paramsFile is used to keep track of several variables used by multiple scripts.
 paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
@@ -40,6 +34,9 @@ paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 
 def main(fileSelectOpt, MassRunCheck, inputPiff):
     initialTime = time.asctime(time.localtime(time.time()))
+
+    #Set random seed
+    seed=random.randint(1, 1000000)
 
     # Find the latest run folder (time-stamped)
     runs_dir = "./runs/"
@@ -55,6 +52,9 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     log_file = os.path.join(current_run_folder, f'run.log')
     logging.basicConfig(filename=log_file, level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Log the seed
+    logging.info(f" SliceStats Random seed: {seed}")
 
     if MassRunCheck:
         # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)  
@@ -175,8 +175,8 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     SliceThicknesses = (8, 10, 14, 16, 64, 70, 72)
 
     for thickness in SliceThicknesses:
-        print(f"\n>>Taking slice with thickness: {thickness} pixels")
-        logging.info(f"Taking slice with thickness: {thickness} pixels")
+        print(f"\n>>Taking slice with thickness: {thickness} nm")
+        logging.info(f"Taking slice with thickness: {thickness} nm")
         unScaledSliceThickness = thickness
         slice_measurements_path = os.path.join(current_run_folder, f"sliceMeasurements_{thickness}.csv")
         slice_measurements_copy_path = os.path.join("sliceData", f"sliceMeasurements_{thickness}.csv")
@@ -261,9 +261,18 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor):
     lineCollection = []   
     
     sliceThickness = unScaledSliceThickness / scaleFactor
-    HalfSliceThickness = round((sliceThickness - 1) / 2)
+    unroundedHalfSliceThickness = (sliceThickness - 1) / 2
+    HalfSliceThickness = math.floor((sliceThickness - 1) / 2)
+    fractionalPart = unroundedHalfSliceThickness - HalfSliceThickness
+
+    random.seed(seed)
+    variability = random.random()
+    print(variability)
+    if variability < fractionalPart:
+        HalfSliceThickness += 1
     
-    logging.info(f"Slice thickness: {sliceThickness}")
+        logging.info(f"Slice thickness: {sliceThickness}")
+    logging.info(f"Half slice thickness: {HalfSliceThickness}")
     print(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
     logging.info(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
 
