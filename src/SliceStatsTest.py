@@ -182,7 +182,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     recogLimit = math.pi * (minBodyRadius**2)
     logging.info(f"Body Recognition limit (area): {recogLimit}")
         
-    lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor)
+    lineCollection = take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
     
     if len(lineCollection) == 0:
         print("No bodies found in slice")
@@ -204,7 +204,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     except Exception as e:
         print(f"Could not copy sliceMeasurements to sliceData: {e}")
 
-def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor): 
+def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed): 
     '''Sorts the pixels within the PIFF file into wallText and bodyText.
        The lines within bodyText that fall within the slice are sorted into lineCollection.'''  
     wallText = []   
