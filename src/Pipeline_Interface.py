@@ -323,14 +323,14 @@ def run_SliceStats():
         print(f"An error occurred while running SliceStats.py: {e}")
 
 def run_SliceStatsTest():
-    print("Running SliceStats_MultiThickness...")
-    command = [sys.executable, 'SliceStats_MultiThickness.py']
+    print("Running SliceStatsTest...")
+    command = [sys.executable, 'SliceStatsTest.py']
 
     try:
         subprocess.run(command, check=True)
-        print("SliceStats_MultiThickness executed successfully.")
+        print("SliceStatsTest executed successfully.")
     except subprocess.CalledProcessError as e:
-        print(f"An error occurred while running SliceStats_MultiThicknessst.py: {e}")
+        print(f"An error occurred while running SliceStatsTest.py: {e}")
 
 
 def run_AVSStats():
