@@ -18,7 +18,6 @@ from datetime import datetime
 #   Eastern Michigan University
 #   Backues Lab  
 #   Author: Payton Dunning and Steven Backues
-#   Last Date Modified: Dec. 18th 2024
 #
 #   A script for analyzing the contents of an Autophagic Vacuole Simulation (AVS) project formatted 
 #   Compucell 3D (CC3D) simulation. The script takes in a PIF file (.piff), that must contain "Body" and
@@ -117,29 +116,10 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     size_sigma = modelParams.get("Body_Radius_Sigma", "")
     number_mu = modelParams.get("Body_Number_Mu", "")
     number_sigma = modelParams.get("Body_Number_Sigma", "")
-
-    if not MassRunCheck:
-        print(">>Would you like to use these parameters?[y/n]")
-        paramSelect = input()
-        if paramSelect == "n":
-            print(">>Please enter new values for parameters:\n")
-            print("(The Wall radius parameter value should be a post-scaling value)")
-            print("\n>>Enter new scaling factor: ")
-            scaleFactor = int(input())
-            print("\n>>Enter the given wall's radius", end='')
-            wallRadius = int(input())
-            print("\n>>Enter the given wall's central x-coordinate:", end='')
-            centerX = int(input())
+    sliceLocation = modelParams.get("Slice_Location", "random")
 
     vacMin = (unScaledVacMin / scaleFactor)
     logging.info("Default slice recognition limit (radius) = %d pixels" % vacMin)
-    
-    if not MassRunCheck:
-        print(">>Would you like to use this default minimum vacuole slice threshold?[y/n]")
-        minDInput = input()
-        if minDInput.lower() == "n":
-            print("\n>>Enter new minimum vacuole threshold (scaled): ")
-            vacMin = int(input())
     
     # Adjust recognition limit to match file scale
     wallRecDiff = (wallRadius**2) - (vacMin**2)
@@ -150,32 +130,27 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     # Adjust minX and maxX using vacuole center and wall radius
     minX = int(centerX - diamRangeVar)
     maxX = int(centerX + diamRangeVar)
+    Average_Body_Radius = float(modelParams.get("Largest_Body_Radius", 0)) / scaleFactor
     
     print(f"Adjusted valid slice range: {minX} to {maxX}")
     
     logging.info(f"Adjusted valid slice range: {minX} to {maxX}")
 
     sliceCoord = -1
-    if MassRunCheck:
+    if sliceLocation == "random":
         sliceCoord = random.randint(minX, maxX)
+    elif sliceLocation == "center":
+        sliceCoord = centerX
+    elif sliceLocation == "half":
+        sliceCoord = centerX + int(Average_Body_Radius / 2)
+    elif sliceLocation == "edge":
+        sliceCoord = centerX + int(Average_Body_Radius)
     else:
-        print(">>Finally, select an option for determining where a slice will be taken:")
-        print("\t[0 for slice to be taken at centerX coordinate]")
-        print("\t[1 for slice to be taken at a randomly selected coordinate]")
-        print("\t[2 for slice to be taken at a user specified coordinate]")
-        sliceChoice = int(input())
-        if sliceChoice == 0:
-            sliceCoord = centerX
-        elif sliceChoice == 1:
-            sliceCoord = random.randint(minX, maxX)
-        elif sliceChoice == 2:
-            print("\n>>Enter the x coordinate you'd like the slice to be taken at:")
-            sliceCoord = int(input())
-        else:
-            print("\nInput was found to be invalid. Please enter 0, 1, or 2 for your slice selection method.")
-            return
+        print(f"Warning: Unrecognized Slice_Location '{sliceLocation}'. Defaulting to random.")
+        sliceCoord = random.randint(minX, maxX)
             
     print(f"Taking slice at X coordinate: {sliceCoord}")
+    logging.info(f"Taking slice at X coordinate: {sliceCoord}")
     
     # Adjust recognition limit based on body size
     minBodyRadius = (unScaledminBodyRadius / scaleFactor)
@@ -459,6 +434,7 @@ def load_parameters_from_file(file_path):
                 parameters["Body_Number_Sigma"] = float(latest_row.get("Body_Number_Sigma", ""))
                 parameters["Vacuole_x"] = float(latest_row["Vacuole_x"])
                 parameters["Vacuole_Inner_Radius"] = float(latest_row.get("Vacuole_Inner_Radius", 0))
+                parameters["Largest_Body_Radius"] = float(latest_row.get("Largest_Body_Radius", 0))
                 print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}")
             else:
                 print(f"Warning: {vacuole_csv_path} exists but is empty.")
