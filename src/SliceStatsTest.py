@@ -116,7 +116,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     size_sigma = modelParams.get("Body_Radius_Sigma", "")
     number_mu = modelParams.get("Body_Number_Mu", "")
     number_sigma = modelParams.get("Body_Number_Sigma", "")
-    sliceLocation = modelParams.get("Slice_Location", "random")
+    sliceLocation = modelParams.get("sliceLocation", "random")
 
     vacMin = (unScaledVacMin / scaleFactor)
     logging.info("Default slice recognition limit (radius) = %d pixels" % vacMin)
@@ -133,8 +133,9 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     Average_Body_Radius = float(modelParams.get("Largest_Body_Radius", 0)) / scaleFactor
     
     print(f"Adjusted valid slice range: {minX} to {maxX}")
-    
     logging.info(f"Adjusted valid slice range: {minX} to {maxX}")
+    
+    print (f"sliceLocation': {sliceLocation}")
 
     sliceCoord = -1
     if sliceLocation == "random":
@@ -145,9 +146,12 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         sliceCoord = centerX + int(Average_Body_Radius / 2)
     elif sliceLocation == "edge":
         sliceCoord = centerX + int(Average_Body_Radius)
-    else:
-        print(f"Warning: Unrecognized Slice_Location '{sliceLocation}'. Defaulting to random.")
-        sliceCoord = random.randint(minX, maxX)
+    else: 
+        try:
+            sliceCoord = int(sliceLocation)
+        except:
+            print(f"Warning: Unrecognized Slice_Location '{sliceLocation}'. Defaulting to random.")
+            sliceCoord = random.randint(minX, maxX)
             
     print(f"Taking slice at X coordinate: {sliceCoord}")
     logging.info(f"Taking slice at X coordinate: {sliceCoord}")
