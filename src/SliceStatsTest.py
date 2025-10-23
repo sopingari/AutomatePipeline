@@ -98,9 +98,9 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     centerZ = float(modelParams.get("Vacuole_z", 0)) / scaleFactor
     
     # Convert to integers (for array indexing)
-    centerX = int(round(centerX))
-    centerY = int(round(centerY))
-    centerZ = int(round(centerZ))
+    centerX = int(centerX)
+    centerY = int(centerY)
+    centerZ = int(centerZ)
     wallRadius = int(float(modelParams.get("Vacuole_Inner_Radius", 0)) / scaleFactor)
  
     print(f"Using Vacuole Center as Slice Reference: X={centerX}, Y={centerY}, Z={centerZ}")
