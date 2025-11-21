@@ -139,7 +139,8 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                 'Actual_Tries',
                 'Vacuole_x',
                 'Vacuole_y',
-                'Vacuole_z'
+                'Vacuole_z',
+                'slicePosition'
                 ]) 
             
     except Exception as e:

@@ -116,7 +116,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     size_sigma = modelParams.get("Body_Radius_Sigma", "")
     number_mu = modelParams.get("Body_Number_Mu", "")
     number_sigma = modelParams.get("Body_Number_Sigma", "")
-    sliceLocation = modelParams.get("sliceLocation", "random")
+    sliceLocation = modelParams.get("sliceLocation", "predetermined")
 
     vacMin = (unScaledVacMin / scaleFactor)
     logging.info("Default slice recognition limit (radius) = %d pixels" % vacMin)
@@ -131,14 +131,18 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     minX = int(centerX - diamRangeVar)
     maxX = int(centerX + diamRangeVar)
     Average_Body_Radius = float(modelParams.get("Largest_Body_Radius", 0)) / scaleFactor
-    
+    unscaledSlicePosition = float(modelParams.get("slicePosition"))
+    slicePosition = int(unscaledSlicePosition / scaleFactor)
+
     print(f"Adjusted valid slice range: {minX} to {maxX}")
     logging.info(f"Adjusted valid slice range: {minX} to {maxX}")
     
     print (f"sliceLocation': {sliceLocation}")
 
     sliceCoord = -1
-    if sliceLocation == "random":
+    if sliceLocation == "predetermined":
+        sliceCoord = slicePosition
+    elif sliceLocation == "random":
         sliceCoord = random.randint(minX, maxX)
     elif sliceLocation == "center":
         sliceCoord = centerX
@@ -439,7 +443,8 @@ def load_parameters_from_file(file_path):
                 parameters["Vacuole_x"] = float(latest_row["Vacuole_x"])
                 parameters["Vacuole_Inner_Radius"] = float(latest_row.get("Vacuole_Inner_Radius", 0))
                 parameters["Largest_Body_Radius"] = float(latest_row.get("Largest_Body_Radius", 0))
-                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}")
+                parameters["slicePosition"] = float(latest_row.get("slicePosition")))
+                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}, slicePosition: {parameters['slicePosition']}")
             else:
                 print(f"Warning: {vacuole_csv_path} exists but is empty.")
         else:

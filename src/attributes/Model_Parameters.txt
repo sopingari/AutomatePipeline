@@ -36,4 +36,4 @@ Body_number_sigma_step = 0.05 # (log count) The size of the step to take while i
 unScaledSliceThickness = 8  # thickness of ultrathin section in nm; used in SliceStats
 unScaledVacMin = 00.0  # only cells sections with a visible vacuole (in nm) of at least this radius were measured; used in SliceStats 
 unScaledminBodyRadius = 00 # body sections with a radius smaller than this (in nm) are ignored; used in SliceStats
-sliceLocation = 128 #Use random for actual data analysis.  For testing with a single body, can try "center", "half" (adds half the body radius), or "edge" (adds body radius) or a coordinate number
+sliceLocation = predetermined #Use predetermined for actual data analysis, as this will coordinate with vacuolegen.  For testing with a single body, can try "center", "half" (adds half the body radius), or "edge" (adds body radius) or a coordinate number or "random"

@@ -33,7 +33,7 @@ def total_dist_to_pt(pos_array_as_vec,apb_df,ctr_to_use:np.ndarray=None):
   return np.sum(dists)
   #  orig_lengths = np.expand_dims(np.sqrt(np.sum(dir_array**2,axis=1)),axis=1)
 
-def move_along_dir(df,pos_array,ii,direction,stepsize,placeVacuole=False):
+def move_along_dir(df,pos_array,ii,direction,stepsize,vacRadInner, placeVacuole=False, ):
   # the direction (dir) passed in should usually be a unit vector,
   # but it's not actually required, so we don't check for it.
   dist_from_origin = (df.loc[0,"r"]+df.loc[ii,"r"])*(1.0+1e-8)
@@ -234,7 +234,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
       dir=np.zeros((3,),dtype=float)
       dir[0:ndim]=dirmat[jj,:]
       #print(dir,orig_lengths[jj]) # debugging
-      pos,dist_from_origin = move_along_dir(df,pos_array,ii,dir,stepsize)
+      pos,dist_from_origin = move_along_dir(df,pos_array,ii,dir,stepsize, vacRadInner)
       pos_list.append(pos)
       dist_hist[jj] = dist_from_origin
     # done with the for loop. Which one was the best?
@@ -313,18 +313,32 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     dists_plus_rad = dists_to_origin + r
     max_dists_plus_rad = max(dists_plus_rad)
     vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
+    visible_slice = 0
     iterCount = 0
-    while (max_dists_plus_rad > vacRadInner) and (iterCount < maxVacuoleIterations):
+    unScaledSliceThickness = args.unScaledSliceThickness
+    unScaledVacMin = args.unScaledVacMin
+    box_size = 10*(math.exp((wall_Radius_Mu)+(wall_Radius_Sigma**2)/2)) 
+    assert box_size/10 > unScaledSliceThickness, "Your average vacuole is smaller than your slice thickness - please increase wall_Radius_Mu or decrease unScaledSliceThickness" 
+    z = 0.5*box_size #place the slicing plane halfway through the box  
+    while (max_dists_plus_rad > vacRadInner) and (iterCount < maxVacuoleIterations): # checks that the vacuole is big enough to hold all APBs
+      while (visible_slice <= unScaledVacMin):  #take a slice of the randomly generated vacuole, and if the slice is smaller than unScaledVacMin, generate and slice a new vacuole
         #generate new vacRadInner according to a lognormal
         r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
-        vacRadInner = np.exp(r_normals) # turn the normals into log-normals
-        iterCount += 1
+        vacRadInner = np.exp(r_normals) # turn the normals into log-normals       
+        vacpos = np.random.uniform(low = 0, high = box_size)
+        zoffset = z - vacpos  #distance from vacuole center to slice plane
+        if abs(zoffset) >= (vacRadInner + 0.5*unScaledSliceThickness):
+          visible_slice = 0  #the slice does not intersect the vacuole
+        elif abs(zoffset) <= (0.5*unScaledSliceThickness):
+          visible_slice = vacRadInner  #the slice contains the center of the vacuole
+        else:
+          visible_slice = math.sqrt(vacRadInner**2 - (abs(zoffset)-0.5*unScaledSliceThickness)**2) 
+      iterCount += 1
     if(iterCount >= maxVacuoleIterations):
-        print("Warning: Maxed Out on Vacuole Size Iterations.")
+        print("Warning: Maxed Out on Vacuole Size Iterations.  Generating vacuole to fit the bodies")
         vacRadInner = max_dists_plus_rad * 1.01  # fallback: adding a 1% buffer to avoid collisions with APBs
 
     vacRadOuter = 1.05*vacRadInner
-
     # Done with checking, now shift everything:
     pos_array_shifted_to_1st_octant = pos_array_shifted_to_origin + vacRadOuter
     r_and_pos_array = np.hstack((np.expand_dims(r,axis=1),pos_array_shifted_to_1st_octant))
@@ -336,7 +350,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner to make sure that it all fits in the positive octant
     r_and_pos_array_w_vac = np.vstack((vac_r_and_pos,r_and_pos_array))
     pos_array = np.delete(r_and_pos_array_w_vac,0,axis=1) # copy everything except 1st col, which is r.
-    d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner} #sbackues updated 'r' to 'rOuter'
+    d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner, 'slicePosition':zoffset} 
     df_just_vac = pd.DataFrame(data=[d])
     #MV Pandas Concatenation of Vac Parameter and Dataframe
     df = pd.concat([df_just_vac,df],ignore_index=True)
@@ -621,7 +635,8 @@ def write_combined_csv(run_folder, run_id, args, df):
                 ('Vacuole Volume', float(vacuole_volume)),
                 ('Total Volume', float(total_spheroid_volume + vacuole_volume)),
                 ('Iterations', args.iterations),
-                ('Optimization Max Iterations', args.optimmaxiter)
+                ('Optimization Max Iterations', args.optimmaxiter),
+                ('slicePosition', vacuole['slicePosition'])
             ]
             writer.writerows(summary_data)
             
@@ -832,7 +847,8 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
                 iterCount,
                 float(vacuole['x'].item() if isinstance(vacuole['x'], np.ndarray) else vacuole['x']),  # Add x-coordinate
                 float(vacuole['y'].item() if isinstance(vacuole['y'], np.ndarray) else vacuole['y']),  # Add y-coordinate
-                float(vacuole['z'].item() if isinstance(vacuole['z'], np.ndarray) else vacuole['z'])   # Add z-coordinate
+                float(vacuole['z'].item() if isinstance(vacuole['z'], np.ndarray) else vacuole['z']),   # Add z-coordinate
+                float(vacuole['slicePosition'].item() if isinstance(vacuole['slicePosition'], np.ndarray) else vacuole['slicePosition'])
                 ])                                           
                 
         logging.info(f"Updated combined vacuole data CSV file: {vac_output_file}")
@@ -945,6 +961,8 @@ if __name__ == "__main__":
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')
     parser.add_argument('--PIFF', type=int, default=1, help='0=no PIFF, 1=PIFF overwritten, 2=PIFF saved')
+    parser.add_argument('--unScaledSliceThickness', type=float, default=70.0, help='Thickness of the vacuole slice (default: 70.0 nm)')
+    parser.add_argument('--unScaledVacMin', type=float, default=300.0, help='Minimum visible slice of the vacuole (default: 300.0 nm)')
     
     
 
