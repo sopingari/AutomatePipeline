@@ -337,6 +337,8 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     if(iterCount >= maxVacuoleIterations):
         print("Warning: Maxed Out on Vacuole Size Iterations.  Generating vacuole to fit the bodies")
         vacRadInner = max_dists_plus_rad * 1.01  # fallback: adding a 1% buffer to avoid collisions with APBs
+        zoffset_range = math.sqrt(vacRadInner**2 - unScaledVacMin**2)+ 0.5*unScaledSliceThickness
+        zoffset = np.random.uniform(low = -zoffset_range, high = zoffset_range)
 
     vacRadOuter = 1.05*vacRadInner
     # Done with checking, now shift everything:
