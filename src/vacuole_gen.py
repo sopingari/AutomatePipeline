@@ -363,7 +363,6 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
   dfpos.rename(columns={0: 'x', 1: 'y', 2: 'z'}, inplace=True)
   # add the resulting columns to the main dataframe:
   df = pd.concat([df.reset_index(drop=True), dfpos], axis=1)
-  df.to_csv('df_check.csv')
 
   return(df,pos_array,r_and_pos_array,dirmat_safe,iterCount, ofv_original, ofv_final, compactness)
 
