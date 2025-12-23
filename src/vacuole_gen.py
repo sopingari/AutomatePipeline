@@ -33,7 +33,7 @@ def total_dist_to_pt(pos_array_as_vec,apb_df,ctr_to_use:np.ndarray=None):
   return np.sum(dists)
   #  orig_lengths = np.expand_dims(np.sqrt(np.sum(dir_array**2,axis=1)),axis=1)
 
-def move_along_dir(df,pos_array,ii,direction,stepsize,vacRadInner, placeVacuole=False, ):
+def move_along_dir(df,pos_array,ii,direction,stepsize):
   # the direction (dir) passed in should usually be a unit vector,
   # but it's not actually required, so we don't check for it.
   dist_from_origin = (df.loc[0,"r"]+df.loc[ii,"r"])*(1.0+1e-8)
@@ -81,25 +81,15 @@ def move_along_dir(df,pos_array,ii,direction,stepsize,vacRadInner, placeVacuole=
     #dists = (np.sum(np.abs(pos_array[0:ii,:]-pos)**pvals_e,axis=1))**(1.0/pvals)
     # Now let's also incorporate the p-value of the APB we're trying to place:
     dists = (np.sum(np.abs(pos_array[0:ii,:]-pos)**apvals_e,axis=1))**(1.0/apvals)
-    if placeVacuole:
-        close_enough = (dists + df.head(ii)["r"]) <= vacRadInner # aross15 updating from vacRad to vacRadInner
-        # note that we do still want to use df's "r" column which is the APB's _outer_ radius,
-        # and compare those with the vacuole's _inner_ radius.
-        stopflag = not all(close_enough)
-    else:
-        # Make a set of logicals (True/False), to say whether this APB
-        # is now far enough from each other APB:
-        far_enough = dists >= distmins
-        stopflag = all(far_enough)       
-
+    # Make a set of logicals (True/False), to say whether this APB
+    # is now far enough from each other APB:
+    far_enough = dists >= distmins
+    stopflag = all(far_enough)   
+        
     dist_from_origin += stepsize
   # Done with while loop now  
-  if placeVacuole:
-    dist_from_origin -= 2*stepsize #we moved the vacuole just far enough to be unfeasible so move it back one step to feasibility
-    pos = direction*dist_from_origin
-  else:
-    dist_from_origin -= 1*stepsize  # subtracting stepsize because we added it at the end of the last iteration of the loop.
-    # no need to recompute position
+  dist_from_origin -= 1*stepsize  # subtracting stepsize because we added it at the end of the last iteration of the loop.
+  # no need to recompute position
   return (pos,dist_from_origin) 
 
 
@@ -234,7 +224,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
       dir=np.zeros((3,),dtype=float)
       dir[0:ndim]=dirmat[jj,:]
       #print(dir,orig_lengths[jj]) # debugging
-      pos,dist_from_origin = move_along_dir(df,pos_array,ii,dir,stepsize, vacRadInner)
+      pos,dist_from_origin = move_along_dir(df,pos_array,ii,dir,stepsize)
       pos_list.append(pos)
       dist_hist[jj] = dist_from_origin
     # done with the for loop. Which one was the best?

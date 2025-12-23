@@ -443,7 +443,7 @@ def load_parameters_from_file(file_path):
                 parameters["Vacuole_x"] = float(latest_row["Vacuole_x"])
                 parameters["Vacuole_Inner_Radius"] = float(latest_row.get("Vacuole_Inner_Radius", 0))
                 parameters["Largest_Body_Radius"] = float(latest_row.get("Largest_Body_Radius", 0))
-                parameters["slicePosition"] = float(latest_row.get("slicePosition")))
+                parameters["slicePosition"] = float(latest_row.get("slicePosition"))
                 print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}, slicePosition: {parameters['slicePosition']}")
             else:
                 print(f"Warning: {vacuole_csv_path} exists but is empty.")
