@@ -13,14 +13,14 @@ networkx==3.4.2
 patsy==1.0.1
 pyparsing==3.1.4
 PyQt5==5.15.9
-PyQt5-sip==12.12.2
+PyQt5-sip==12.17.2
 QScintilla==2.14.1
-scikit-image==0.24.0
+scikit-image==0.26.0
 statsmodels==0.14.4
 tqdm==4.66.5
 tifffile==2024.9.20
 unzip==1.0.0
-vtk==9.2.6
+vtk==9.5.2
 zstandard==0.23.0
 pandas==2.2.3
 scipy==1.14.1
