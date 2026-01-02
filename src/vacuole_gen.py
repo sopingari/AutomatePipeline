@@ -896,7 +896,7 @@ def main(args):
         pcterrcap=10.0,
         posOctant=True,
         optimmaxiter=args.optimmaxiter,
-        maxVacuoleIterations=100
+        maxVacuoleIterations=args.max_tries
     )
   
     # Log statistics
@@ -948,7 +948,7 @@ if __name__ == "__main__":
     parser.add_argument('--optimmaxiter', type=int, required=True, help='Maximum iterations for optimization') 
     parser.add_argument('--wall_outer_radius', type=float, default=40.0, help='Outer radius of the wall (default: 40)')
     parser.add_argument('--wall_thickness', type=float, default=2.0, help='Thickness of the wall for visualization (default: 2) - not used in the PIFF file')
-    parser.add_argument('--max_tries', type=int, default=1000, help='Maximum attempts to place each spheroid (default: 1000)')
+    parser.add_argument('--max_tries', type=int, default=100, help='Maximum attempts to place each spheroid (default: 100)')
     parser.add_argument('--output', type=str, default='output.piff', help='Output PIFF file name (default: output.piff)')
     parser.add_argument('--seed', type=int, help='Random seed for reproducibility (default: random)')
     parser.add_argument('--iterations', type=int, default=4, help='Number of iterations for direction selection')

@@ -15,7 +15,7 @@ pyparsing==3.1.4
 PyQt5==5.15.9
 PyQt5-sip==12.17.2
 QScintilla==2.14.1
-scikit-image==0.26.0
+scikit-image==0.24.0
 statsmodels==0.14.4
 tqdm==4.66.5
 tifffile==2024.9.20
