@@ -303,7 +303,6 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     dists_plus_rad = dists_to_origin + r
     max_dists_plus_rad = max(dists_plus_rad)
     vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
-    visible_slice = 0
     iterCount = 0
     unScaledSliceThickness = args.unScaledSliceThickness
     unScaledVacMin = args.unScaledVacMin
@@ -311,6 +310,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     assert box_size/10 > unScaledSliceThickness, "Your average vacuole is smaller than your slice thickness - please increase wall_Radius_Mu or decrease unScaledSliceThickness" 
     z = 0.5*box_size #place the slicing plane halfway through the box  
     while (max_dists_plus_rad > vacRadInner) and (iterCount < maxVacuoleIterations): # checks that the vacuole is big enough to hold all APBs
+      visible_slice = 0
       while (visible_slice <= unScaledVacMin):  #take a slice of the randomly generated vacuole, and if the slice is smaller than unScaledVacMin, generate and slice a new vacuole
         #generate new vacRadInner according to a lognormal
         r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
