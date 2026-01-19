@@ -811,15 +811,15 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
                 datetime.now().isoformat(),
                 args.seed,
                 args.dx,
-                args.mu,    #body radius mu
-                args.sigma, #body radius sigma
+                round(args.mu, 5),    #body radius mu
+                round(args.sigma, 5), #body radius sigma
                 args.pvals, #p-norm value
                 float(avg_radius),
                 float(std_radius),
                 float(largest_radius),
                 float(avg_distance),
-                args.mu_body_number,
-                args.sigma_body_number,
+                round(args.mu_body_number, 5),
+                round(args.sigma_body_number, 5),
                 args.N,
                 len(spheroids),
                 success_rate,
