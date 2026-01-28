@@ -538,7 +538,7 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
     logging.info(f"Greatest voxel value found: {max_voxel_value}")
     
 
-    xml_file_path = './CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'
+    xml_file_path = args.xml_file_path
     update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
     
     #return piff_lines
@@ -914,7 +914,7 @@ def main(args):
         piff_dest = os.path.join(run_folder, os.path.basename(filename))
         shutil.copy(filename, piff_dest)
 
-        cc3d = './CompuCell3D/cc3dSimulation/Simulation'
+        cc3d = os.path.dirname(args.xml_file_path)
         if os.path.exists(cc3d):
             shutil.copy(filename, os.path.join(cc3d, filename))
             logging.info(f"Copied PIFF file to CC3D simulation folder")
@@ -955,6 +955,7 @@ if __name__ == "__main__":
     parser.add_argument('--PIFF', type=int, default=1, help='0=no PIFF, 1=PIFF overwritten, 2=PIFF saved')
     parser.add_argument('--unScaledSliceThickness', type=float, default=70.0, help='Thickness of the vacuole slice (default: 70.0 nm)')
     parser.add_argument('--unScaledVacMin', type=float, default=300.0, help='Minimum visible slice of the vacuole (default: 300.0 nm)')
+    parser.add_argument('--xml_file_path', type=str, default ='/home/ubuntu/CompuCell3D/cc3dSimulation/Simulation/clustertest.xml')
     
     
 

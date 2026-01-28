@@ -9,6 +9,7 @@ pvals = 2  # Sphericity parameter (p-value).  Setting this to 2 will generate sp
 # The optimization does not reliable lead to tighter clusering for non-spherical objects.    
 optimmaxiter = 0 # Maximum iterations for clustering optimization 
 Show_Wall = False  # If True, the vacuole wall is included in the PIFF file, leading to slower CC3D runtimes; use False unless needed.   
+xml_file_path = '/home/ubuntu/CompuCell3D/cc3dSimulation/Simulation/clustertest.xml'  #path to the xml file for the cc3d simulation
 
 #Vacuole parameters (These may vary between experiments, and can be found from the experimental data using simpler methods already published)
 #This is used to generate the inner radius of the vacuole; the outer radius will be 5% greater

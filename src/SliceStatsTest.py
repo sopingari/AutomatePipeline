@@ -53,10 +53,21 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     
     # Log the seed
     logging.info(f" SliceStats Random seed: {seed}")
+    
+    #Get model parameters
+    print("Grabbing AVS Model Parameters...\n")
+    modelParams = load_parameters_from_file(paramsFile)
+    print(modelParams)
+    scaleFactor = int(modelParams['Scale_Factor'])  # Keep scale factor from params file
+    unScaledSliceThickness = int(modelParams['unScaledSliceThickness'])
+    unScaledVacMin = int(float(modelParams['unScaledVacMin']))
+    unScaledminBodyRadius = int(modelParams['unScaledminBodyRadius'])
 
+    #Get PIFF file
     if MassRunCheck:
-        # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)  
-        inputName = "./CompuCell3D/cc3dSimulation/Simulation/output.piff"
+        # Directly use the input PIFF file (output of vacuole_gen.py, before CC3D, for checking)
+        inputDir = os.path.dirname(modelParams['xml_file_path'])  
+        inputName = inputDir+"output.piff"
         print(f"Running SliceStats.py with: {inputName}")
         # Ensure the file exists before proceeding
         while not os.path.exists(inputName):
@@ -85,13 +96,7 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     #             min_x = min(min_x, x1, x2)
     #             max_x = max(max_x, x1, x2)
 
-    print("Grabbing AVS Model Parameters...\n")
-    modelParams = load_parameters_from_file(paramsFile)
-    print(modelParams)
-    scaleFactor = int(modelParams['Scale_Factor'])  # Keep scale factor from params file
-    unScaledSliceThickness = int(modelParams['unScaledSliceThickness'])
-    unScaledVacMin = int(float(modelParams['unScaledVacMin']))
-    unScaledminBodyRadius = int(modelParams['unScaledminBodyRadius'])
+
     # Scale vacuole coordinates
     centerX = float(modelParams.get("Vacuole_x", 0)) / scaleFactor
     centerY = float(modelParams.get("Vacuole_y", 0)) / scaleFactor
@@ -444,7 +449,8 @@ def load_parameters_from_file(file_path):
                 parameters["Vacuole_Inner_Radius"] = float(latest_row.get("Vacuole_Inner_Radius", 0))
                 parameters["Largest_Body_Radius"] = float(latest_row.get("Largest_Body_Radius", 0))
                 parameters["slicePosition"] = float(latest_row.get("slicePosition"))
-                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}, slicePosition: {parameters['slicePosition']}")
+                parameters["xml_file_path"] = str(latest_row.get("xml_file_path"))
+                print(f"Loaded Body_Radius_Mu: {parameters['Body_Radius_Mu']}, Body_Radius_Sigma: {parameters['Body_Radius_Sigma']}, Vacuole_Inner_Radius: {parameters['Vacuole_Inner_Radius']}, slicePosition: {parameters['slicePosition']}, xml_file_path: {parameters['xml_file_path']}")
             else:
                 print(f"Warning: {vacuole_csv_path} exists but is empty.")
         else:
