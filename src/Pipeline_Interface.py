@@ -20,7 +20,7 @@ def main():
         print("\t[1]: Run the full pipeline with nested iterations over Body Number and Body Size")
         print("\t[2]: Run vacuole_gen alone, with nested iterations but no PIFF file generation, for testing")
         print("\t[3]: Run vacuole_gen alone, with nested iterations but no CC3D, for making PIFF files")
-        print("\t[4]: Run CC3D alone in headless mode")
+        #print("\t[4]: Run CC3D alone in headless mode")
         print("\t[5]: Run Slice Stats alone")
         print("\t[6]: Run AVS Stats alone")
         print("\t[7]: Run Slice Stats on the vacuole_gen output, without CC3D, for testing only")
@@ -239,7 +239,7 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
 
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
-                            run_cc3d_script()
+                            run_cc3d_script(params = params)
                             run_SliceStats()
 
                         
@@ -290,9 +290,10 @@ def run_vacuole_gen():
     """    
     run_pipeline(cc3d = False)
     
-def run_cc3d_script():
+def run_cc3d_script(params):
     print("Running CC3D simulation using runScript.sh...")
-    cc3d_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CompuCell3D')
+    cc3d_folder = (os.path.dirname(os.path.dirname(os.path.dirname(params["xml_file_path"]))))
+    print(cc3d_folder)
     run_script = os.path.join(cc3d_folder, 'runScript.sh')
 
     if not os.path.exists(run_script):
