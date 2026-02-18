@@ -174,13 +174,13 @@ def loadDataNumber(fileSelectOpt):
         Tk().withdraw()
         inputFile = askopenfilename()
         sim_slices = pullData(inputFile)
-        size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())[:-1]  #extracts all of the different values of mu, sorted, and removes the last value (the column header)
+        size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())
         print("size mus", size_mus)
-        size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())[:-1]
+        size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())
         print("size sigmas", size_sigmas)
-        number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())[:-1] 
+        number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())
         print("number mus", number_mus)
-        number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())[:-1]
+        number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())
         print("number sigmas", number_sigmas)
         sim_body_numbers = pd.DataFrame()  #Creating an empty dataframe to hold the final body number data
         for size_mu in size_mus: 
