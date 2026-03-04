@@ -66,8 +66,9 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
     #Get PIFF file
     if MassRunCheck:
         # Use the latest (max monte-carlo step) PIFF file from the cc3d simulation folder
-        inputDir = os.path.dirname(modelParams['xml_file_path'])  
-        PIFFS = [file for file in os.listdir(dir) if file.endswith(".piff")]
+        inputDir = os.path.dirname(modelParams['xml_file_path'])
+        print(inputDir)  
+        PIFFS = [file for file in os.listdir(inputDir) if file.endswith(".piff")]
         inputName = sorted(PIFFS)[-1]
         print(f"Running SliceStats.py with: {inputName}")
         
