@@ -82,6 +82,19 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     Run pipeline iterating over Body Number and Body Size using nested loops.
     """
     
+    #Reset the (temporary) output folder that cc3d output PIFFs are stored in each iteration to be sliced by Slicestats
+    #This is to make sure that a PIFF file from a previous run doesn't accidentally get used instead
+    PIFFS = [file for file in os.listdir("./Output") if file.endswith(".piff")]
+    for f in PIFFS:
+      file_path = "./Output/"+str(f)
+      try:
+        os.remove(file_path)
+        print(f"{file_path} deleted successfully.")
+      except FileNotFoundError:
+        print("The file does not exist.")
+      except PermissionError:
+        print("Output folder permission denied.")
+     
     #Create a directory to store the results in
     runs_dir = 'runs'
     if not os.path.exists(runs_dir):
