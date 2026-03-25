@@ -30,7 +30,7 @@ from datetime import datetime
 paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 # paramsFile = 'src/attributes/Model_Parameters.txt'   # For Windows
 
-def main(fileSelectOpt, MassRunCheck, inputPiff):
+def main(fileSelectOpt, MassRunCheck):
     initialTime = time.asctime(time.localtime(time.time()))
 
     #Set random seed
@@ -65,11 +65,12 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
 
     #Get PIFF file
     if MassRunCheck:
-        # Use the latest (max monte-carlo step) PIFF file from the cc3d simulation folder
-        inputDir = os.path.dirname(modelParams['xml_file_path'])
+        # Use the latest (max monte-carlo step) PIFF file from the Output folder
+        inputDir = "./Output"
         print(inputDir)  
         PIFFS = [file for file in os.listdir(inputDir) if file.endswith(".piff")]
-        inputName = sorted(PIFFS)[-1]
+        inputFile = sorted(PIFFS)[-1]
+        inputName = inputDir + "/" + inputFile
         print(f"Running SliceStats.py with: {inputName}")
         
     else:
@@ -450,4 +451,4 @@ def load_parameters_from_file(file_path):
         return None
         
 if __name__ == "__main__":
-    main(fileSelectOpt=True, MassRunCheck=True, inputPiff="src/output.piff")
+    main(fileSelectOpt=True, MassRunCheck=True)
