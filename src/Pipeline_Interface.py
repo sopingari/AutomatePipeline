@@ -229,8 +229,6 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                 for sigma_body_size in sigma_body_size_list:
                     for run_idx in range(sample_size):
                         N_spheroids = int(np.random.lognormal(mean=mu_body_number, sigma=sigma_body_number))
-                        # Ross comment: while I understand not wanting long lines (over 80 characters),
-                        # it feels more systematic to have it all on one line of output
                         print(f"\nRunning pipeline with N={N_spheroids}, mu_body_number={mu_body_number}, sigma_body_number={sigma_body_number}, "
                           f"mu_body_size={mu_body_size}, sigma_body_size={sigma_body_size}, scale_factor={dx}")
                         timenow = time.strftime("%c")
@@ -309,11 +307,11 @@ def run_vacuole_gen():
 def run_cc3d_script(params):
     print("Running CC3D simulation using runScript.sh...")
     cc3d_folder = (os.path.dirname(os.path.dirname(os.path.dirname(params["xml_file_path"]))))[1:]
-    print(cc3d_folder)
+    #print(cc3d_folder)
     run_script = os.path.join(cc3d_folder, 'runScript.sh')
 
     if not os.path.exists(run_script):
-        print("Error: runScript.sh not found in the CompuCell3D folder.")
+        print(f"Error: runScript.sh not found in the {cc3d_folder} folder.")
         return
 
     st = os.stat(run_script)
