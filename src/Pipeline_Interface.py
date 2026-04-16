@@ -84,6 +84,9 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     
     #Reset the (temporary) output folder that cc3d output PIFFs are stored in each iteration to be sliced by Slicestats
     #This is to make sure that a PIFF file from a previous run doesn't accidentally get used instead
+    if not os.path.exists("./Output"):
+      os.makedirs("./Output")  
+
     PIFFS = [file for file in os.listdir("./Output") if file.endswith(".piff")]
     for f in PIFFS:
       file_path = "./Output/"+str(f)
@@ -98,7 +101,7 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     #Create a directory to store the results in
     runs_dir = 'runs'
     if not os.path.exists(runs_dir):
-        os.makedirs(runs_dir)
+      os.makedirs(runs_dir)
     
     # Generate a unique overall ID based on the current date and time
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
