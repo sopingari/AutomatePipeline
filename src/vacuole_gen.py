@@ -522,26 +522,33 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
   
                       # Track the maximum voxel value
                       max_voxel_value = max(max_voxel_value, x, y, z)
-                    
-    # Write the PIFF content to a file
-    with open(filename, 'w') as f:
-        for line in piff_lines:
-            f.write(line + '\n')
 
-    if show_wall.lower() == "true": 
-      print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
-      logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
-    elif show_wall.lower() == "false":
-      print (f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
-      logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
-    print(f"Greatest voxel value found: {max_voxel_value}")
-    logging.info(f"Greatest voxel value found: {max_voxel_value}")
-    
+    # Check to make sure that simulation isn't too large where it will run out of memory.               
+    if max_voxel_value > args.Max_allowed_voxel_value:  
+        print(f"Warning: The greatest voxel value found is {max_voxel_value}, which may be too large for cc3d to handle.  This vacuole will be excluded.")
+        logging.warning(f"The greatest voxel value found is {max_voxel_value}, which may be too large for cc3d to handle.  This vacuole will be excluded.")
+        useable = False    
+    else:      
+        # Write the PIFF content to a file
+        with open(filename, 'w') as f:
+            for line in piff_lines:
+                f.write(line + '\n')
 
-    xml_file_path = args.xml_file_path
-    update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
-    
-    #return piff_lines
+        if show_wall.lower() == "true": 
+          print(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+          logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids and surrounding wall.")
+        elif show_wall.lower() == "false":
+          print (f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
+          logging.info(f"PIFF file '{filename}' generated with {len(spheroids)} spheroids.")
+        print(f"Greatest voxel value found: {max_voxel_value}")
+        logging.info(f"Greatest voxel value found: {max_voxel_value}")
+        
+        useable = True
+
+        xml_file_path = args.xml_file_path
+        update_dimensions_in_xml(xml_file_path, max_voxel_value + 3)
+        
+    return useable
 
 def update_dimensions_in_xml(xml_file_path, greatest_voxel_value):
     # Parse the XML file
@@ -899,16 +906,10 @@ def main(args):
         maxVacuoleIterations=args.max_tries
     )
   
-    # Log statistics
-    log_statistics(args, df)
-    
-    # Write the combined CSVs directly to the run folder
-    write_body_size_combined_csv(run_folder, run_id, args, df)
-    write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
-    
+   
     # If desired, generate PIFF file and save it to the simulation folder (for cc3d use)
     if PIFF == 1 or PIFF == 2:
-        generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
+        useable = generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
 
         # Copy output.piff to the run_folder
         piff_dest = os.path.join(run_folder, os.path.basename(filename))
@@ -918,6 +919,17 @@ def main(args):
         if os.path.exists(cc3d):
             shutil.copy(filename, os.path.join(cc3d, filename))
             logging.info(f"Copied PIFF file to CC3D simulation folder")
+    else:  
+       useable = True  # If not generating a PIFF file, it doesn't matter how large simulation would be
+
+ # We will only keep track of this run if it was useable, meaning that the cluster size wasn't too big to generate a PIFF file that cc3d can handle.  
+ # If it was too big, we will skip logging statistics, but will log a warning and move on to the next run.
+    if useable:    
+        log_statistics(args, df)
+        
+        # Write the combined CSVs directly to the run folder
+        write_body_size_combined_csv(run_folder, run_id, args, df)
+        write_vacuole_data_csv(run_folder, run_id, args, df, iterCount, ofv_original, ofv_final, compactness)
 
     #If desired Save a copy of the PIFF file in a subfolder within the run folder for later inspection
     # Also add statistics for that run as a csv to that folder.
@@ -928,8 +940,10 @@ def main(args):
         shutil.copy(filename, piff_copy_path)
         logging.info(f"Saved copy of PIFF file in run folder: {piff_copy_path}")
         write_combined_csv(run_subfolder, run_id, args, df)
-
-    logging.info(f"Run {run_id} completed successfully.")
+    if useable:
+        logging.info(f"Run {run_id} completed successfully.")
+    else:
+        logging.warning(f"Run {run_id} was not useable due to large voxel values.  Skipping statistics logging, PIFF file and CSV generation and moving on to the next run.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -956,6 +970,7 @@ if __name__ == "__main__":
     parser.add_argument('--unScaledSliceThickness', type=float, default=70.0, help='Thickness of the vacuole slice (default: 70.0 nm)')
     parser.add_argument('--unScaledVacMin', type=float, default=300.0, help='Minimum visible slice of the vacuole (default: 300.0 nm)')
     parser.add_argument('--xml_file_path', type=str, default ='/home/ubuntu/CompuCell3D/cc3dSimulation/Simulation/clustertest.xml')
+    parser.add_argument('--Max_allowed_voxel_value', type=int, default=500, help='Maximum allowed voxel value for CC3D compatibility (default: 500)')
     
     
 
