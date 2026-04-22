@@ -242,10 +242,14 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                         print(f"Sample {run_idx + 1}/{sample_size}")
                         
                         #Delete the cc3d input PIFF from the previous run
+                        print (f"xml_file_path {xml_file_path}")
                         cc3d_folder = os.path.dirname(xml_file_path)
+                        print (f"cc3d_folder {cc3d_folder}")
                         PIFFS = [file for file in os.listdir(cc3d_folder) if file.endswith(".piff")]
                         for f in PIFFS:
-                          file_path = cc3d+str(f)
+                          print (f"Piff file {f}")
+                          file_path = cc3d_folder+"/"+str(f)
+                          print (f"Piff file path {file_path}")
                           try:
                             os.remove(file_path)
                             print(f"{file_path} deleted successfully.")
@@ -275,10 +279,12 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
 
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
-                            cc3d_input_PIFF = str(cc3d_folder)+"output.piff"    
+                            cc3d_input_PIFF = str(cc3d_folder)+"/output.piff"    
                             if os.path.exists(cc3d_input_PIFF):   # If PIFF file generation was skipped, we also skip running cc3d
                                 run_cc3d_script(params = params)
                                 run_SliceStats()
+                            else:
+                                print("A PIFF file was not generated, so cc3d and SliceStats will not be run")
 
                         
                         #Test SliceStats (if called for)

@@ -914,12 +914,12 @@ def main(args):
         useable = generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
 
         # Copy output.piff to the run_folder
-        if useable = True:
+        if useable == True:
             piff_dest = os.path.join(run_folder, os.path.basename(filename))
             shutil.copy(filename, piff_dest)
 
         # Copy output.piff to the cc3d folder
-        if useable = True:
+        if useable == True:
             cc3d = os.path.dirname(args.xml_file_path)
             if os.path.exists(cc3d):
                 shutil.copy(filename, os.path.join(cc3d, filename))
