@@ -213,9 +213,15 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
     #Parameters for PIFF file generation
     dx = float(params["Scale_Factor"])  #nm per voxel
     show_wall = str(params["Show_Wall"])
+    xml_file_path = str(params["xml_file_path"])
+    Max_allowed_voxel_value = str(params["Max_allowed_voxel_value"])
     
     #Parameter for number of maximum iterations for optimization
     optimmaxiter = int(params["optimmaxiter"])
+    
+    #Parameters for slicing
+    unScaledSliceThickness = str(params["unScaledSliceThickness"])        
+    unScaledVacMin = str(params["unScaledVacMin"])
     
     # Generate lists of values to iterate over
     mu_body_number_list = get_list_to_iterate_over(mu_body_number_start, mu_body_number_end, mu_body_number_step)
@@ -234,6 +240,19 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                         timenow = time.strftime("%c")
                         print(f"datetime: {timenow}") # it's nice to say when we started
                         print(f"Sample {run_idx + 1}/{sample_size}")
+                        
+                        #Delete the cc3d input PIFF from the previous run
+                        cc3d_folder = os.path.dirname(xml_file_path)
+                        PIFFS = [file for file in os.listdir(cc3d_folder) if file.endswith(".piff")]
+                        for f in PIFFS:
+                          file_path = cc3d+str(f)
+                          try:
+                            os.remove(file_path)
+                            print(f"{file_path} deleted successfully.")
+                          except FileNotFoundError:
+                            print("The file does not exist.")
+                            
+                        #Run vacuole_gen    
                         vacuolegenmain(
                             run_folder = run_folder,
                             N_spheroids=N_spheroids,
@@ -247,14 +266,19 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                             dx=dx,
                             show_wall=show_wall,
                             optimmaxiter=optimmaxiter,
-                            PIFF=PIFF
-                            
+                            PIFF=PIFF,
+                            unScaledSliceThickness=unScaledSliceThickness,
+                            unScaledVacMin=unScaledVacMin,
+                            xml_file_path=xml_file_path,
+                            Max_allowed_voxel_value=Max_allowed_voxel_value       
                         )
 
                         # Run CompuCell3D simulation (only if called for)
                         if cc3d == True:
-                            run_cc3d_script(params = params)
-                            run_SliceStats()
+                            cc3d_input_PIFF = str(cc3d_folder)+"output.piff"    
+                            if os.path.exists(cc3d_input_PIFF):   # If PIFF file generation was skipped, we also skip running cc3d
+                                run_cc3d_script(params = params)
+                                run_SliceStats()
 
                         
                         #Test SliceStats (if called for)
@@ -267,7 +291,8 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
 
 
 def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, mu_body_size, sigma_body_size, pvals, 
-                    wall_radius_mu, wall_radius_sigma, dx, show_wall, optimmaxiter, PIFF):
+                    wall_radius_mu, wall_radius_sigma, dx, show_wall, optimmaxiter, PIFF, unScaledSliceThickness, unScaledVacMin, xml_file_path,       
+                    Max_allowed_voxel_value):
     """
     Run vacuole_gen.py with specified parameters.
     """
@@ -288,7 +313,11 @@ def vacuolegenmain(run_folder, N_spheroids, mu_body_number, sigma_body_number, m
         "--dx", str(dx),
         "--show_wall", str(show_wall),
         "--optimmaxiter", str(optimmaxiter),
-        "--PIFF", str(PIFF)
+        "--PIFF", str(PIFF),
+        "--unScaledSliceThickness", str(unScaledSliceThickness),
+        "--unScaledVacMin", str(unScaledVacMin),
+        "--xml_file_path", str(xml_file_path),
+        "--Max_allowed_voxel_value", str(Max_allowed_voxel_value),
         
     ]
 

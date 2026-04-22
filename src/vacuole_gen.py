@@ -523,7 +523,9 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
                       # Track the maximum voxel value
                       max_voxel_value = max(max_voxel_value, x, y, z)
 
-    # Check to make sure that simulation isn't too large where it will run out of memory.               
+    # Check to make sure that simulation isn't too large where it will run out of memory.  
+    Max_allowed_voxel_value = args.Max_allowed_voxel_value
+    print(f'Maximum allowed voxel values is {Max_allowed_voxel_value}')             
     if max_voxel_value > args.Max_allowed_voxel_value:  
         print(f"Warning: The greatest voxel value found is {max_voxel_value}, which may be too large for cc3d to handle.  This vacuole will be excluded.")
         logging.warning(f"The greatest voxel value found is {max_voxel_value}, which may be too large for cc3d to handle.  This vacuole will be excluded.")
@@ -912,13 +914,16 @@ def main(args):
         useable = generate_piff_file(df, dx=args.dx, show_wall = args.show_wall, filename=filename)
 
         # Copy output.piff to the run_folder
-        piff_dest = os.path.join(run_folder, os.path.basename(filename))
-        shutil.copy(filename, piff_dest)
+        if useable = True:
+            piff_dest = os.path.join(run_folder, os.path.basename(filename))
+            shutil.copy(filename, piff_dest)
 
-        cc3d = os.path.dirname(args.xml_file_path)
-        if os.path.exists(cc3d):
-            shutil.copy(filename, os.path.join(cc3d, filename))
-            logging.info(f"Copied PIFF file to CC3D simulation folder")
+        # Copy output.piff to the cc3d folder
+        if useable = True:
+            cc3d = os.path.dirname(args.xml_file_path)
+            if os.path.exists(cc3d):
+                shutil.copy(filename, os.path.join(cc3d, filename))
+                logging.info(f"Copied PIFF file to CC3D simulation folder")
     else:  
        useable = True  # If not generating a PIFF file, it doesn't matter how large simulation would be
 
@@ -943,7 +948,8 @@ def main(args):
     if useable:
         logging.info(f"Run {run_id} completed successfully.")
     else:
-        logging.warning(f"Run {run_id} was not useable due to large voxel values.  Skipping statistics logging, PIFF file and CSV generation and moving on to the next run.")
+        logging.warning(f"Run {run_id} was not useable due to large voxel values.  Skipping statistics logging, PIFF file and CSV generation and cc3d and moving on to the next run.")
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -970,7 +976,7 @@ if __name__ == "__main__":
     parser.add_argument('--unScaledSliceThickness', type=float, default=70.0, help='Thickness of the vacuole slice (default: 70.0 nm)')
     parser.add_argument('--unScaledVacMin', type=float, default=300.0, help='Minimum visible slice of the vacuole (default: 300.0 nm)')
     parser.add_argument('--xml_file_path', type=str, default ='/home/ubuntu/CompuCell3D/cc3dSimulation/Simulation/clustertest.xml')
-    parser.add_argument('--Max_allowed_voxel_value', type=int, default=500, help='Maximum allowed voxel value for CC3D compatibility (default: 500)')
+    parser.add_argument('--Max_allowed_voxel_value', type=int, default=200, help='Maximum allowed voxel value for CC3D compatibility (default: 500)')
     
     
 
