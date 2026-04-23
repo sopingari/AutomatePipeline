@@ -292,7 +292,6 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                             run_SliceStatsTest()
                         
 
-
     print("--- Pipeline execution complete ---")
 
 
@@ -341,7 +340,7 @@ def run_vacuole_gen():
     
 def run_cc3d_script(params):
     print("Running CC3D simulation using runScript.sh...")
-    cc3d_folder = (os.path.dirname(os.path.dirname(os.path.dirname(params["xml_file_path"]))))[1:]
+    cc3d_folder = (os.path.dirname(os.path.dirname(os.path.dirname(params["xml_file_path"]))))
     #print(cc3d_folder)
     run_script = os.path.join(cc3d_folder, 'runScript.sh')
 
