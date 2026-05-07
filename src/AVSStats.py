@@ -325,7 +325,11 @@ def ksTest_area(real, sim):
 def ksTest_number(real, sim):
     sim = sim['number']
     ks = stats.ks_2samp(real, sim)
-    #print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
+    print ("simulated average", sim.mean())
+    print ("simulated standard deviation", sim.std())
+    print ("real data average", real.mean())
+    print ("real data standard deviation", real.std())
+    print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
     return ks
 
 def multiKS_area(real, sim, directory):
@@ -377,7 +381,17 @@ def multiKS_number(real, sim, directory):
         split_data = sim.loc[sim['number_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['number_sigma'] == sigma]
+            splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
             ks = ksTest_number(real, splitter_data)
+            #print ("ks statistic", ks.statistic)
+            #print ("average", splitter_data['number'].mean())
+            #print ("standard deviation", splitter_data['number'].std())
+            plt.ecdf(real, label = 'Real Data')
+            plt.ecdf(splitter_data['number'], label = 'Simulated Data')
+            plt.title(f"Mu: {mu}, Sigma: {sigma}, KS statistic: {ks.statistic:.9f}, p-value: {ks.pvalue:.9E}")
+            plt.legend()
+            plt.savefig(os.path.join(directory, f"ECDF_plot_number_mu{mu}_sigma{sigma}.png"))
+            plt.clf()  #Clears the figure for the next plot 
             ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
