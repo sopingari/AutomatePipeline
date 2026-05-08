@@ -199,7 +199,7 @@ def loadDataNumber(fileSelectOpt):
                         print("empty slice num", empty_slice_num)  #For verification
                         empty_slices = [0]*empty_slice_num      #Creating a list of 0's to represent the empty slices
                         print ("empty slices", empty_slices)  #For verification
-                        sim_body_number = pd.DataFrame({'number': split_slices['time'].value_counts().to_list()})  #Each unique timestamp is a slice
+                        sim_body_number = pd.DataFrame({'number': split_slices_noNaN['time'].value_counts().to_list()})  #Each unique timestamp is a slice
                         sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
                         sim_body_number.to_csv(os.path.join(directory, f"sim_body_number_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the simulated body numbers to a csv file for verification
                         size_mu_list = [float(size_mu)]*len(sim_body_number)  #Creating a list of the size_mu value to add to the dataframe
