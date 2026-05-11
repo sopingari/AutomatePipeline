@@ -174,13 +174,13 @@ def loadDataNumber(fileSelectOpt):
         Tk().withdraw()
         inputFile = askopenfilename()
         sim_slices = pullData(inputFile)
-        size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())[:-1]  #extracts all of the different values of mu, sorted, and removes the last value (the column header)
+        size_mus = sorted(sim_slices['size_mu'].value_counts().index.tolist())
         print("size mus", size_mus)
-        size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())[:-1]
+        size_sigmas = sorted(sim_slices['size_sigma'].value_counts().index.tolist())
         print("size sigmas", size_sigmas)
-        number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())[:-1] 
+        number_mus = sorted(sim_slices['number_mu'].value_counts().index.tolist())
         print("number mus", number_mus)
-        number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())[:-1]
+        number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())
         print("number sigmas", number_sigmas)
         sim_body_numbers = pd.DataFrame()  #Creating an empty dataframe to hold the final body number data
         for size_mu in size_mus: 
@@ -192,11 +192,16 @@ def loadDataNumber(fileSelectOpt):
                     for number_sigma in number_sigmas:
                         split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
                         split_slices = split_slices[sim_slices.time != 'time']  #Removing non-number rows (left-over headers).  This works 
-                        split_slices = split_slices.dropna( axis = 0)   #Removing rows that had "NaN" because there were no bodies captured in that slice
-                        empty_slice_num = split_slices.shape[0] - split_slices.shape[0]   #Calculating the number of rows that had "NaN" because there were no bodies captured in that slice
+                        #split_slices.to_csv(os.path.join(directory, f"split_slices_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the split slices to a csv file for verification
+                        split_slices_noNaN = split_slices.dropna( axis = 0)   #Removing rows that had "NaN" because there were no bodies captured in that slice
+                        #split_slices_noNaN.to_csv(os.path.join(directory, f"split_slices_noNaN_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the split slices with no NaN's to a csv file for verification #For verification
+                        empty_slice_num = split_slices.shape[0] - split_slices_noNaN.shape[0]   #Calculating the number of rows that had "NaN" because there were no bodies captured in that slice
+                        #print("empty slice num", empty_slice_num)  #For verification
                         empty_slices = [0]*empty_slice_num      #Creating a list of 0's to represent the empty slices
-                        sim_body_number = pd.DataFrame({'number': split_slices['time'].value_counts().to_list()})  #The number of unique timestamps is the number of bodies in the slice                        sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
+                        #print ("empty slices", empty_slices)  #For verification
+                        sim_body_number = pd.DataFrame({'number': split_slices_noNaN['time'].value_counts().to_list()})  #Each unique timestamp is a slice
                         sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
+                        sim_body_number.to_csv(os.path.join(directory, f"sim_body_number_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the simulated body numbers to a csv file for verification
                         size_mu_list = [float(size_mu)]*len(sim_body_number)  #Creating a list of the size_mu value to add to the dataframe
                         size_sigma_list = [float(size_sigma)]*len(sim_body_number)
                         number_mu_list = [float(number_mu)]*len(sim_body_number)  
@@ -325,7 +330,11 @@ def ksTest_area(real, sim):
 def ksTest_number(real, sim):
     sim = sim['number']
     ks = stats.ks_2samp(real, sim)
-    #print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
+    print ("simulated average", sim.mean())
+    print ("simulated standard deviation", sim.std())
+    print ("real data average", real.mean())
+    print ("real data standard deviation", real.std())
+    print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
     return ks
 
 def multiKS_area(real, sim, directory):
@@ -377,7 +386,17 @@ def multiKS_number(real, sim, directory):
         split_data = sim.loc[sim['number_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['number_sigma'] == sigma]
+            splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
             ks = ksTest_number(real, splitter_data)
+            #print ("ks statistic", ks.statistic)
+            #print ("average", splitter_data['number'].mean())
+            #print ("standard deviation", splitter_data['number'].std())
+            #plt.ecdf(real, label = 'Real Data')
+            #plt.ecdf(splitter_data['number'], label = 'Simulated Data')
+            #plt.title(f"Mu: {mu}, Sigma: {sigma}, KS statistic: {ks.statistic:.9f}, p-value: {ks.pvalue:.9E}")
+            #plt.legend()
+            #plt.savefig(os.path.join(directory, f"ECDF_plot_number_mu{mu}_sigma{sigma}.png"))
+            #plt.clf()  #Clears the figure for the next plot 
             ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
