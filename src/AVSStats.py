@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-import statistics
 import scipy.stats as stats
 import statsmodels.api as sm
-import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd 
 from statsmodels.graphics.gofplots import qqplot_2samples
@@ -22,10 +20,11 @@ def main(fileSelectOpt = True, manual = True):
             print(">>Please select an option: ")
             print("[1]: Load your data")  ### Works for both size and number - verified
             print("[2]: Calculate statistics on your data")   #### Works for both size and number - verified
-            print("[3]: Perform a KS (Kolmogorov-Smirnov) test")   ### Works for both size and number
+            print("[3]: Perform a KS (Kolmogorov-Smirnov) test and an ES (Epps-Singleton) test")  
             print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works for both size and number
             print("[5]: Generate a Violin Plot")    #### Works for both size and number
-            print("[6]: Choose to analyze body size or body number")
+            print("[6]: Generate a CDF (cumulative distribution function) plot")  
+            print("[7]: Choose to analyze body size or body number")
             print("[0]: Exit Script")
             
             userSelection = input()
@@ -61,37 +60,48 @@ def main(fileSelectOpt = True, manual = True):
             elif(userSelection == "3"):
                 if programMode == "1":
                     try:
-                        KS_results = multiKS_area(real = real_slices, sim = sim_slices, directory = directory)
-                        print(KS_results)
-                        KS_heatmap(KS_results)
+                        KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
                     except:
                         loadDataMessage()
                 elif programMode == "2":
-                    # try:
-                    KS_results = multiKS_number(real = real_slices, sim = sim_slices, directory = directory)
-                    print(KS_results)
-                    KS_heatmap(KS_results)
-                    # except:
-                    #     loadDataMessage()
+                    try:
+                        KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                        loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
                     print("[2]: Estimate body number from number of bodies per image")
                     programMode = input() 
 
+                print("Here are your Kolomogorov-Smirnov results:")
+                print(KS_results)
+                KS_heatmap(KS_results,  directory = directory)
+                print("KS results and heatmap saved to the same directory as your original real body data")
+                print("Here are your Epps-Singleton results:")
+                print(ES_results)
+                ES_heatmap(ES_results, directory = directory)
+                print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
+
             elif(userSelection == "4"):
                 if programMode == "1":
-                    qqPlot_area(real = real_slices, sim = sim_slices)
+                    qqPlot_area(real = real_slices, sim = sim_slices, directory= directory)
                 elif programMode == "2":
-                    qqPlot_number(real = real_slices, sim = sim_slices) 
+                    qqPlot_number(real = real_slices, sim = sim_slices, directory= directory)
 
             elif(userSelection == "5"):
                 if programMode == "1":
-                    violinPlot_area(real = real_slices, sim = sim_slices)
+                    violinPlot_area(real = real_slices, sim = sim_slices, directory = directory)
                 elif programMode == "2":
-                    violinPlot_number(real = real_slices, sim = sim_slices)
+                    violinPlot_number(real = real_slices, sim = sim_slices, directory = directory)
 
             elif(userSelection == "6"):
+                if programMode == "1":
+                    cdfPlot_area(real = real_slices, sim = sim_slices, directory = directory)
+                elif programMode == "2":
+                    cdfPlot_number(real = real_slices, sim = sim_slices, directory = directory)
+
+            elif(userSelection == "7"):
                 print('NOTE!! You will need to reload your data after this for it to be valid')
                 print(">>Please select an option: ")    
                 print("[1]: Estimate body size from body slice areas")
@@ -101,7 +111,7 @@ def main(fileSelectOpt = True, manual = True):
             elif(userSelection == "0"):
                 raise SystemExit
             else:
-                print("Please choose an option 0 through 6 by typing that number")
+                print("Please choose an option 0 through 7 by typing that number")
 
 def loadDataArea(fileSelectOpt):
     if fileSelectOpt  == True:
@@ -200,7 +210,7 @@ def loadDataNumber(fileSelectOpt):
                         #print ("empty slices", empty_slices)  #For verification
                         sim_body_number = pd.DataFrame({'number': split_slices_noNaN['time'].value_counts().to_list()})  #Each unique timestamp is a slice
                         sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
-                        sim_body_number.to_csv(os.path.join(directory, f"sim_body_number_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the simulated body numbers to a csv file for verification
+                        # sim_body_number.to_csv(os.path.join(directory, f"sim_body_number__mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the simulated body numbers to a csv file for verification
                         size_mu_list = [float(size_mu)]*len(sim_body_number)  #Creating a list of the size_mu value to add to the dataframe
                         size_sigma_list = [float(size_sigma)]*len(sim_body_number)
                         number_mu_list = [float(number_mu)]*len(sim_body_number)  
@@ -227,7 +237,6 @@ def pullData(dataFile, head = 0):
     slices = pd.read_csv(inStream, header = head)
     inStream.close()
     return slices
- 
 
 def findAverage_size(real, sim, directory):
     data = real   
@@ -317,26 +326,23 @@ def findAverage_num(real, sim, directory):
     print(multi_results)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
         multi_results.to_csv(f, index = False) 
-    print("Saved simulated body area statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
+    print("Saved simulated body number statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
 
 
-def ksTest_area(real, sim):
+def compare_distribs_area(real, sim):
     sim = sim['area_scaled']
     ks = stats.ks_2samp(real, sim)
+    es = stats.epps_singleton_2samp(real, sim)
     #print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
-    return ks
+    return ks, es
 
-def ksTest_number(real, sim):
+def compare_distribs_number(real, sim):
     sim = sim['number']
     ks = stats.ks_2samp(real, sim)
-    print ("simulated average", sim.mean())
-    print ("simulated standard deviation", sim.std())
-    print ("real data average", real.mean())
-    print ("real data standard deviation", real.std())
-    print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
-    return ks
+    es = stats.epps_singleton_2samp(real, sim)
+    return ks, es
 
-def multiKS_area(real, sim, directory):
+def multi_compare_area(real, sim, directory):
     print(sim.head())
     mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
     mu_list = sorted(mus) 
@@ -346,21 +352,28 @@ def multiKS_area(real, sim, directory):
     sigma_list = sorted(sigmas)
     print(sigma_list)
     #print(type(sigma_list))
-    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks'])
+    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+    multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
     for mu in mu_list:
         split_data = sim.loc[sim['size_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
-            ks = ksTest_area(real, splitter_data)
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
+            ks, es = compare_distribs_area(real, splitter_data)
+            print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma}is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
+            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue), float(ks.statistic_location)]], columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
-    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')     
+            print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma} is {es.statistic:.9f}, and the p-value is {es.pvalue:.9E}. \n")
+            es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+            multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
+    sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
+    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')     
     with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
-        sorted_ks_results.to_csv(f, index = False)     
-    print("Saved KS results to 'ks_results_area.csv' in the same directory as your original real body data")
-    return sorted_ks_results 
+        sorted_ks_results.to_csv(f, index = False) 
+    with open(os.path.join(directory, 'es_results_area.csv'), 'w') as f:    
+        sorted_es_results.to_csv(f, index = False)
+    return sorted_ks_results, sorted_es_results 
 
-def multiKS_number(real, sim, directory):
+def multi_compare_number(real, sim, directory):
     size_mu = input("Input the size mu you want to use (run the program in size mode to find this): ")
     size_sigma = input("Input the size sigma you want to use (run the program in size mode to find this): ")
     print(sim.head())
@@ -380,31 +393,30 @@ def multiKS_number(real, sim, directory):
     sigma_list = sorted(sigmas)
     print(sigma_list)
     #print(type(sigma_list))
-    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks'])
+    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+    multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
     for mu in mu_list:
         split_data = sim.loc[sim['number_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['number_sigma'] == sigma]
-            splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
-            ks = ksTest_number(real, splitter_data)
-            #print ("ks statistic", ks.statistic)
-            #print ("average", splitter_data['number'].mean())
-            #print ("standard deviation", splitter_data['number'].std())
-            #plt.ecdf(real, label = 'Real Data')
-            #plt.ecdf(splitter_data['number'], label = 'Simulated Data')
-            #plt.title(f"Mu: {mu}, Sigma: {sigma}, KS statistic: {ks.statistic:.9f}, p-value: {ks.pvalue:.9E}")
-            #plt.legend()
-            #plt.savefig(os.path.join(directory, f"ECDF_plot_number_mu{mu}_sigma{sigma}.png"))
-            #plt.clf()  #Clears the figure for the next plot 
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic)]], columns = ['mu', 'sigma', 'ks'])
+            #splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
+            ks, es = compare_distribs_number(real, splitter_data)
+            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue), float(ks.statistic_location)]], columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+            es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
+            multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
+
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
     with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
         sorted_ks_results.to_csv(f, index = False)
-    print("Saved KS results to 'ks_results_number.csv' in the same directory as your original real body data")       
-    return sorted_ks_results 
 
-def KS_heatmap(ks_results):
+    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')
+    with open(os.path.join(directory, 'es_results_number.csv'), 'w') as f:    
+            sorted_es_results.to_csv(f, index = False)
+
+    return sorted_ks_results, sorted_es_results
+
+def KS_heatmap(ks_results, directory):
     ks_pivot = ks_results.pivot(index = 'sigma', columns = 'mu', values = 'ks')
     print(ks_pivot)
     plt.figure(figsize = (10,8))
@@ -412,9 +424,21 @@ def KS_heatmap(ks_results):
     plt.title('KS statistic for different mu and sigma values')
     plt.xlabel('mu values')
     plt.ylabel('sigma values')
+    plt.savefig(os.path.join(directory, f"KS_heatmap.png"))
     plt.show()
 
-def qqPlot_area(real, sim):
+def ES_heatmap(es_results, directory): 
+    es_pivot = es_results.pivot(index = 'sigma', columns = 'mu', values = 'es_statistic')
+    print(es_pivot)
+    plt.figure(figsize = (10,8))
+    sns.heatmap(es_pivot, annot = True, cmap = 'viridis')
+    plt.title('Epps-Singleton statistic for different mu and sigma values')
+    plt.xlabel('mu values')
+    plt.ylabel('sigma values')
+    plt.savefig(os.path.join(directory, f"ES_heatmap.png"))
+    plt.show()
+
+def qqPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
     size_mu = input("Input the size_mu you want to use: ")
     size_sigma = input("Input the size_sigma you want to use: ")
@@ -425,10 +449,10 @@ def qqPlot_area(real, sim):
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
     qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
-    
+    plt.savefig(os.path.join(directory, f"QQ_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
     plt.show()
 
-def qqPlot_number(real, sim):
+def qqPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
     print('- for example, the values that gave the lowest KS statistic.')
     size_mu = input("Input the size_mu you want to use: ")
@@ -444,11 +468,11 @@ def qqPlot_number(real, sim):
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
     qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
-    
+    plt.savefig(os.path.join(directory, f"QQ_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
     plt.show()
 
 
-def violinPlot_area(real, sim):
+def violinPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
     size_mu = input("Input the size_mu you want to use: ")
     size_sigma = input("Input the size_sigma you want to use: ")
@@ -462,9 +486,10 @@ def violinPlot_area(real, sim):
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
     ax.set_xlabel("Data Sets")
     ax.set_ylabel("Body Crossectional Area (square nm)")   
+    plt.savefig(os.path.join(directory, f"Violin_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
     plt.show()
 
-def violinPlot_number(real, sim):
+def violinPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
     print('- for example, the values that gave the lowest KS statistic.')
     size_mu = input("Input the size_mu you want to use: ")
@@ -483,9 +508,47 @@ def violinPlot_number(real, sim):
     sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
     ax.set_xlabel("Data Sets")
     ax.set_ylabel("Body Number per Slice")   
+    plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
     plt.show()
 
+def cdfPlot_area(real, sim, directory):
+    print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+    sim = sim['area_scaled']
+    plt.figure()
+    plt.title(f"CDF Plot for mu = {size_mu} and sigma = {size_sigma}")
+    plt.xlabel("Body Crossectional Area (square nm)")
+    plt.ylabel("Cumulative Probability")
+    plt.grid()
+    plt.ecdf(real, label = 'Real Data')
+    plt.ecdf(sim, label = 'Simulated Data')
+    plt.legend()
+    plt.savefig(os.path.join(directory, f"CDF_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
+    plt.show()
 
+def cdfPlot_number(real, sim, directory):
+    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the CDF plot - for example, the values that gave the lowest KS statistic.')
+    size_mu = input("Input the size_mu you want to use: ")
+    size_sigma = input("Input the size_sigma you want to use: ")
+    number_mu = input("Input the number_mu you want to use: ")
+    number_sigma = input("Input the number_sigma you want to use: ")
+    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+    sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+    sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+    sim = sim['number']
+    plt.figure()
+    plt.title(f"CDF Plot for size mu = {size_mu}, size sigma = {size_sigma}, number mu = {number_mu}, and number sigma = {number_sigma}")
+    plt.xlabel("Body Number per Slice")
+    plt.ylabel("Cumulative Probability")
+    plt.grid()
+    plt.ecdf(real, label = 'Real Data')
+    plt.ecdf(sim, label = 'Simulated Data')
+    plt.legend()
+    plt.savefig(os.path.join(directory, f"CDF_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+    plt.show()
 
- 
 main()
