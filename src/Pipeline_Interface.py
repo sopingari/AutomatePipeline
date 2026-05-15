@@ -17,13 +17,12 @@ def main():
 
     while True:
         print(">> Please select from the following options by entering the corresponding number:")
-        print("\t[1]: Run the full pipeline with nested iterations over Body Number and Body Size")
-        print("\t[2]: Run vacuole_gen alone, with nested iterations but no PIFF file generation, for testing")
+        print("\t[1]: Run the full pipeline including CC3D with nested iterations over Body Number and Body Size")
+        print("\t[2]: Run vacuole_gen alone, with nested iterations but no PIFF file generation, for testing only")
         print("\t[3]: Run vacuole_gen alone, with nested iterations but no CC3D, for making PIFF files")
-        #print("\t[4]: Run CC3D alone in headless mode")
+        print("\t[4]: Run Slice Stats on the vacuole_gen output, without CC3D, for testing only")
         print("\t[5]: Run Slice Stats alone")
-        print("\t[6]: Run AVS Stats alone")
-        print("\t[7]: Run Slice Stats on the vacuole_gen output, without CC3D, for testing only")
+        print("\t[6]: Run AVS Stats alone, for analyzing data")     
         print("\t[9]: Read the ReadMe file")
         print("\t[0]: Exit AVS")
 
@@ -39,13 +38,11 @@ def main():
         elif scriptChoice == "3":
             run_pipeline(cc3d = False, PIFF = 2)
         elif scriptChoice == "4":
-            run_cc3d_script()
+            run_pipeline(cc3d = False, PIFF = 1, SliceTest = True) # For testing SliceStats
         elif scriptChoice == "5":
             run_SliceStats()
         elif scriptChoice == "6":
             run_AVSStats()
-        elif scriptChoice == "7":
-            run_pipeline(cc3d = False, PIFF = 1, SliceTest = True) # For testing SliceStats
         elif scriptChoice == "9":
             read_readme()
         else:
