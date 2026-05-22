@@ -332,6 +332,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
 
     vacRadOuter = 1.05*vacRadInner
     # Done with checking, now shift everything:
+    zoffset_shifted = zoffset + vacRadOuter
     pos_array_shifted_to_1st_octant = pos_array_shifted_to_origin + vacRadOuter
     r_and_pos_array = np.hstack((np.expand_dims(r,axis=1),pos_array_shifted_to_1st_octant))
 
@@ -342,7 +343,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner to make sure that it all fits in the positive octant
     r_and_pos_array_w_vac = np.vstack((vac_r_and_pos,r_and_pos_array))
     pos_array = np.delete(r_and_pos_array_w_vac,0,axis=1) # copy everything except 1st col, which is r.
-    d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner, 'slicePosition':zoffset} 
+    d = {'bodynum': -100, 'bodyType':'Vacuole', 'rOuter': vacRadOuter,'p':vacp, 'rInner':vacRadInner, 'slicePosition':zoffset_shifted} 
     df_just_vac = pd.DataFrame(data=[d])
     #MV Pandas Concatenation of Vac Parameter and Dataframe
     df = pd.concat([df_just_vac,df],ignore_index=True)
