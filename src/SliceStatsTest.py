@@ -31,7 +31,7 @@ paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 # paramsFile = 'src/attributes/Model_Parameters.txt'   # For Windows
 
 def main(fileSelectOpt, MassRunCheck, inputPiff):
-    initialTime = time.asctime(time.localtime(time.time()))
+    initialTime = datetime.fromtimestamp(time.time())
 
     #Set random seed
     seed=random.randint(1, 1000000)
