@@ -1,0 +1,27 @@
+import pandas as pd 
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+import os as os
+
+def pullData(dataFile, head = 0):
+    inStream = open(dataFile, "r")
+    slices = pd.read_csv(inStream, header = head)
+    inStream.close()
+    return slices
+
+print(">>Select the first csv file that you wish to combine:")
+print("(The file selection screen may appear BEHIND your current application)")
+Tk().withdraw()
+inputFile1 = askopenfilename()
+directory = os.path.dirname(inputFile1)
+first_slices = pullData(inputFile1)
+print(">>Select the second csv file that you wish to combine.  It must have the same columns as the first file:")
+print("(The file selection screen may appear BEHIND your current application)")
+Tk().withdraw() 
+inputFile2 = askopenfilename()
+second_slices = pullData(inputFile2)
+combined_slices = pd.concat([first_slices, second_slices], ignore_index = True)
+with open(os.path.join(directory, 'sliceMeasurements_combined.csv'), 'w') as f:  
+        combined_slices.to_csv(f, index = False) 
+print("The combined file has been saved as 'sliceMeasurements_combined.csv' in the same directory as the input files.")
+
