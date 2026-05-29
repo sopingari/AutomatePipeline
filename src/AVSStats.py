@@ -438,10 +438,43 @@ def ES_heatmap(es_results, directory):
     plt.savefig(os.path.join(directory, f"ES_heatmap.png"))
     plt.show()
 
+def get_size_input(sim):
+    print(sim["size_mu"].values)
+    size_mu = float(input("Input the size_mu you want to use: "))
+    if size_mu not in sim['size_mu'].values:
+        print("No data found for that size mu - choose a different value ")
+        return None, None 
+    print(sim["size_sigma"].values)  
+    size_sigma = float(input("Input the size_sigma you want to use: "))
+    if size_sigma not in sim['size_sigma'].values:
+        print("No data found for that size sigma - choose a different value")
+        return None, None
+    return size_mu, size_sigma
+
+def get_number_input(sim):
+    size_mu = float(input("Input the size_mu you want to use: "))
+    if size_mu not in sim['size_mu'].values:
+        print("No data found for that size mu - choose a different value ")
+        return None, None, None, None 
+    size_sigma = float(input("Input the size_sigma you want to use: "))
+    if size_sigma not in sim['size_sigma'].values:
+        print("No data found for that size sigma - choose a different value")
+        return None, None, None, None
+    number_mu = float(input("Input the number_mu you want to use: "))
+    if number_mu not in sim['number_mu'].values:
+        print("No data found for that number mu - choose a different value")
+        return None, None, None, None  
+    number_sigma = float(input("Input the number_sigma you want to use: "))
+    if number_sigma not in sim['number_sigma'].values:
+        print("No data found for that number sigma - choose a different value")
+        return None, None, None, None
+    return size_mu, size_sigma, number_mu, number_sigma
+
 def qqPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
+    size_mu, size_sigma = get_size_input(sim)
+    if size_mu is None or size_sigma is None:
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim['area_scaled']
@@ -455,10 +488,9 @@ def qqPlot_area(real, sim, directory):
 def qqPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
     print('- for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
-    number_mu = input("Input the number_mu you want to use: ")
-    number_sigma = input("Input the number_sigma you want to use: ")
+    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
@@ -474,8 +506,9 @@ def qqPlot_number(real, sim, directory):
 
 def violinPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
+    size_mu, size_sigma = get_size_input(sim)
+    if size_mu is None or size_sigma is None:       
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim['area_scaled']
@@ -492,10 +525,9 @@ def violinPlot_area(real, sim, directory):
 def violinPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
     print('- for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
-    number_mu = input("Input the number_mu you want to use: ")
-    number_sigma = input("Input the number_sigma you want to use: ")
+    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
@@ -513,8 +545,9 @@ def violinPlot_number(real, sim, directory):
 
 def cdfPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
+    size_mu, size_sigma = get_size_input(sim)   
+    if size_mu is None or size_sigma is None:
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim['area_scaled']
@@ -531,10 +564,9 @@ def cdfPlot_area(real, sim, directory):
 
 def cdfPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the CDF plot - for example, the values that gave the lowest KS statistic.')
-    size_mu = input("Input the size_mu you want to use: ")
-    size_sigma = input("Input the size_sigma you want to use: ")
-    number_mu = input("Input the number_mu you want to use: ")
-    number_sigma = input("Input the number_sigma you want to use: ")
+    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+        return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu

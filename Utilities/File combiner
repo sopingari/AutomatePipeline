@@ -23,5 +23,5 @@ second_slices = pullData(inputFile2)
 combined_slices = pd.concat([first_slices, second_slices], ignore_index = True)
 with open(os.path.join(directory, 'sliceMeasurements_combined.csv'), 'w') as f:  
         combined_slices.to_csv(f, index = False) 
-print("The combined file has been saved as 'sliceMeasurements_combined.csv' in the same directory as the input files.")
+print("The combined file has been saved as 'sliceMeasurements_combined.csv' in the same directory as the first input file.")
 
