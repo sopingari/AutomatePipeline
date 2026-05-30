@@ -21,10 +21,9 @@ def main(fileSelectOpt = True, manual = True):
             print("[1]: Load your data")  ### Works for both size and number - verified
             print("[2]: Calculate statistics on your data")   #### Works for both size and number - verified
             print("[3]: Perform a KS (Kolmogorov-Smirnov) test and an ES (Epps-Singleton) test")  
-            print("[4]: Generate a Q-Q (quantile-quantile) plot)")   #### Works for both size and number
-            print("[5]: Generate a Violin Plot")    #### Works for both size and number
-            print("[6]: Generate a CDF (cumulative distribution function) plot")  
-            print("[7]: Choose to analyze body size or body number")
+            print("[4]: Generate a single graph to visualize the differences between your real and simulated data")
+            print("[5]: Generate a set of graphs to visualize the differences between your real and simulated data for different mu and sigma combinations ")  
+            print("[6]: Choose to analyze body size or body number")
             print("[0]: Exit Script")
             
             userSelection = input()
@@ -84,16 +83,10 @@ def main(fileSelectOpt = True, manual = True):
                 print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
 
             elif(userSelection == "4"):
-                if programMode == "1":
-                    qqPlot_area(real = real_slices, sim = sim_slices, directory= directory)
-                elif programMode == "2":
-                    qqPlot_number(real = real_slices, sim = sim_slices, directory= directory)
+                make_graph(real = real_slices, sim = sim_slices, directory = directory, programMode = programMode)
 
             elif(userSelection == "5"):
-                if programMode == "1":
-                    violinPlot_area(real = real_slices, sim = sim_slices, directory = directory)
-                elif programMode == "2":
-                    violinPlot_number(real = real_slices, sim = sim_slices, directory = directory)
+                make_graph_multi(real = real_slices, sim = sim_slices, directory = directory, programMode = programMode)
 
             elif(userSelection == "6"):
                 if programMode == "1":
@@ -101,7 +94,7 @@ def main(fileSelectOpt = True, manual = True):
                 elif programMode == "2":
                     cdfPlot_number(real = real_slices, sim = sim_slices, directory = directory)
 
-            elif(userSelection == "7"):
+            elif(userSelection == "6"):
                 print('NOTE!! You will need to reload your data after this for it to be valid')
                 print(">>Please select an option: ")    
                 print("[1]: Estimate body size from body slice areas")
@@ -438,6 +431,66 @@ def ES_heatmap(es_results, directory):
     plt.savefig(os.path.join(directory, f"ES_heatmap.png"))
     plt.show()
 
+def make_graph (real, sim, directory, programMode):
+    print(">>Please select an option: ")
+    print("[1]: Generate a Q-Q (quantile-quantile) plot)")
+    print("[2]: Generate a Violin Plot")
+    print("[3]: Generate a CDF (cumulative distribution function) plot")    
+    if programMode == "1":
+        which_graph = input("Which graph would you like to generate to visualize the differences between your real and simulated body size data?")
+        if which_graph == "1":
+            qqPlot_area(real, sim, directory) 
+        elif which_graph == "2":
+            violinPlot_area(real, sim, directory)   
+        elif which_graph == "3":
+            cdfPlot_area(real, sim, directory)
+        else:
+            print("Please choose an option 1 through 3 by typing that number")
+    elif programMode == "2":
+        which_graph = input("Which graph would you like to generate to visualize the differences between your real and simulated body number data?)")
+        if which_graph == "1":
+            qqPlot_number(real, sim, directory, mu = None, sigma = None) 
+        elif which_graph == "2":
+            violinPlot_number(real, sim, directory, mu_list = None, sigma_list = None)   
+        elif which_graph == "3":
+            cdfPlot_number(real, sim, directory, mu_list = None, sigma_list = None)
+        else:
+            print("Please choose an option 1 through 3 by typing that number")
+
+def make_graph_multi(real, sim, directory, programMode):
+    print(">>Which graph would you like to generate to visualize the differences between your real and simulated body size data?")
+    print("[1]: Generate a set of Q-Q (quantile-quantile) plots of the simulated data vs the real data for different mu and sigma combinations)")
+    print("[2]: Generate a Violin Plot with all of the different mu and sigma combinations plotted together")
+    print("[3]: Generate a CDF (cumulative distribution function) plot with all of the different mu and sigma combinations plotted together)")   
+    which_graph = input(">>Please select an option: ") 
+    if programMode == "1":
+    # I'll also need to edit the qqPlot function to take in mu and sigma as parameters to save the plots with different names.
+        mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
+        sigmas = sim['size_sigma'].value_counts().index.tolist()  # Extracts all of the different values of sigma
+        mu_list = sorted(mus) 
+        sigma_list = sorted(sigmas)
+        if which_graph == "1":
+            for mu in mu_list:
+                for sigma in sigma_list:
+                    qqPlot_area(real, sim, directory, size_mu = mu, size_sigma = sigma) 
+        elif which_graph == "2":
+            violinPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)   
+        elif which_graph == "3":
+            cdfPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)
+        else:
+            print("Please choose an option 1 through 3 by typing that number")
+    elif programMode == "2":
+        input("Which graph would you like to generate to visualize the differences between your real and simulated body number data?)")
+        which_graph = input(">>Please select an option: ")
+        if which_graph == "1":
+            qqPlot_number(real, sim, directory) 
+        elif which_graph == "2":
+            violinPlot_number(real, sim, directory)   
+        elif which_graph == "3":
+            cdfPlot_number(real, sim, directory)
+        else:
+            print("Please choose an option 1 through 3 by typing that number")
+
 def get_size_input(sim):
     print(sim["size_mu"].values)
     size_mu = float(input("Input the size_mu you want to use: "))
@@ -470,9 +523,13 @@ def get_number_input(sim):
         return None, None, None, None
     return size_mu, size_sigma, number_mu, number_sigma
 
-def qqPlot_area(real, sim, directory):
-    print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma = get_size_input(sim)
+def qqPlot_area(real, sim, directory, size_mu = None, size_sigma = None):
+    if size_mu is None or size_sigma is None:
+        print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma = get_size_input(sim)
+    else:
+        size_mu = size_mu
+        size_sigma = size_sigma
     if size_mu is None or size_sigma is None:
         return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
@@ -481,7 +538,7 @@ def qqPlot_area(real, sim, directory):
 
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
-    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
+    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for mu = {size_mu}, sigma = {size_sigma}')  
     plt.savefig(os.path.join(directory, f"QQ_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
     plt.show()
 
@@ -504,24 +561,34 @@ def qqPlot_number(real, sim, directory):
     plt.show()
 
 
-def violinPlot_area(real, sim, directory):
+def violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list = None):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma = get_size_input(sim)
-    if size_mu is None or size_sigma is None:       
+    if size_mu_list is None or size_sigma_list is None:
+        size_mu, size_sigma = get_size_input(sim)
+        size_mu_list = [size_mu]
+        size_sigma_list = [size_sigma]
+    else:
+        size_mu_list = size_mu_list
+        size_sigma_list = size_sigma_list     
+    if size_mu_list is None or size_sigma_list is None:       
         return
-    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-    sim = sim['area_scaled']
-    data = [real, sim]
-    
-    fig=plt.figure()
-    ax = fig.add_subplot(111)   
-    sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
-    ax.set_xlabel("Data Sets")
-    ax.set_ylabel("Body Crossectional Area (square nm)")   
-    plt.savefig(os.path.join(directory, f"Violin_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
-    plt.show()
+    data = [real]
+    for size_mu in size_mu_list:
+        for size_sigma in size_sigma_list:
+            sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+            sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+            sim = sim['area_scaled']
+            new_data = [sim]
+            data.append(new_data)
 
+            fig=plt.figure()
+            ax = fig.add_subplot(111)   
+            sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", f"mu = {size_mu}, sigma = {size_sigma}"])
+            ax.set_xlabel("Data Sets")
+            ax.set_ylabel("Body Crossectional Area (square nm)")   
+            plt.savefig(os.path.join(directory, f"Violin_plot_real_vs_simulated.png"))
+            plt.show()
+1
 def violinPlot_number(real, sim, directory):
     print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
     print('- for example, the values that gave the lowest KS statistic.')
