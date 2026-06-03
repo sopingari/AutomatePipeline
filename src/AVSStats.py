@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 import scipy.stats as stats
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
+from ridgeplot import ridgeplot
 import pandas as pd 
 from statsmodels.graphics.gofplots import qqplot_2samples
 from tkinter import Tk
@@ -87,12 +89,6 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "5"):
                 make_graph_multi(real = real_slices, sim = sim_slices, directory = directory, programMode = programMode)
-
-            elif(userSelection == "6"):
-                if programMode == "1":
-                    cdfPlot_area(real = real_slices, sim = sim_slices, directory = directory)
-                elif programMode == "2":
-                    cdfPlot_number(real = real_slices, sim = sim_slices, directory = directory)
 
             elif(userSelection == "6"):
                 print('NOTE!! You will need to reload your data after this for it to be valid')
@@ -435,32 +431,35 @@ def make_graph (real, sim, directory, programMode):
     print(">>Please select an option: ")
     print("[1]: Generate a Q-Q (quantile-quantile) plot)")
     print("[2]: Generate a Violin Plot")
-    print("[3]: Generate a CDF (cumulative distribution function) plot")    
+    print("[3]: Generate a Ridgeline Plot")  
+    print("[4]: Generate a CDF (cumulative distribution function) plot")    
     if programMode == "1":
         which_graph = input("Which graph would you like to generate to visualize the differences between your real and simulated body size data?")
         if which_graph == "1":
             qqPlot_area(real, sim, directory) 
         elif which_graph == "2":
-            violinPlot_area(real, sim, directory)   
+            violinPlot_area(real, sim, directory) 
         elif which_graph == "3":
+            ridgelinePlot_area(real, sim, directory)  
+        elif which_graph == "4":
             cdfPlot_area(real, sim, directory)
         else:
-            print("Please choose an option 1 through 3 by typing that number")
+            print("Please choose an option 1 through 4 by typing that number")
     elif programMode == "2":
         which_graph = input("Which graph would you like to generate to visualize the differences between your real and simulated body number data?)")
         if which_graph == "1":
-            qqPlot_number(real, sim, directory, mu = None, sigma = None) 
+            qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None) 
         elif which_graph == "2":
-            violinPlot_number(real, sim, directory, mu_list = None, sigma_list = None)   
+            violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)   
         elif which_graph == "3":
-            cdfPlot_number(real, sim, directory, mu_list = None, sigma_list = None)
+            cdfPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)
         else:
             print("Please choose an option 1 through 3 by typing that number")
 
 def make_graph_multi(real, sim, directory, programMode):
     print(">>Which graph would you like to generate to visualize the differences between your real and simulated body size data?")
     print("[1]: Generate a set of Q-Q (quantile-quantile) plots of the simulated data vs the real data for different mu and sigma combinations)")
-    print("[2]: Generate a Violin Plot with all of the different mu and sigma combinations plotted together")
+    print("[2]: Generate a Ridgeline Plot with all of the different mu and sigma combinations plotted together")
     print("[3]: Generate a CDF (cumulative distribution function) plot with all of the different mu and sigma combinations plotted together)")   
     which_graph = input(">>Please select an option: ") 
     if programMode == "1":
@@ -474,7 +473,7 @@ def make_graph_multi(real, sim, directory, programMode):
                 for sigma in sigma_list:
                     qqPlot_area(real, sim, directory, size_mu = mu, size_sigma = sigma) 
         elif which_graph == "2":
-            violinPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)   
+            ridgelinePlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)   
         elif which_graph == "3":
             cdfPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)
         else:
@@ -483,7 +482,7 @@ def make_graph_multi(real, sim, directory, programMode):
         input("Which graph would you like to generate to visualize the differences between your real and simulated body number data?)")
         which_graph = input(">>Please select an option: ")
         if which_graph == "1":
-            qqPlot_number(real, sim, directory) 
+            qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None) 
         elif which_graph == "2":
             violinPlot_number(real, sim, directory)   
         elif which_graph == "3":
@@ -542,10 +541,16 @@ def qqPlot_area(real, sim, directory, size_mu = None, size_sigma = None):
     plt.savefig(os.path.join(directory, f"QQ_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
     plt.show()
 
-def qqPlot_number(real, sim, directory):
-    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
-    print('- for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+def qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None):
+    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+        print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
+        print('- for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+    else:
+        size_mu = size_mu
+        size_sigma = size_sigma
+        number_mu = number_mu
+        number_sigma = number_sigma
     if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
         return
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
@@ -556,8 +561,8 @@ def qqPlot_number(real, sim, directory):
 
     plotA = sm.ProbPlot(real)
     plotB = sm.ProbPlot(sim)
-    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel ='Quantiles of Simulated Data')  
-    plt.savefig(os.path.join(directory, f"QQ_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for number_mu = {number_mu}, sigma = {number_sigma}')  
+    plt.savefig(os.path.join(directory, f"QQ_plot_numberMu{number_mu}_numberSigma{number_sigma}.png"))
     plt.show()
 
 
@@ -649,5 +654,96 @@ def cdfPlot_number(real, sim, directory):
     plt.legend()
     plt.savefig(os.path.join(directory, f"CDF_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
     plt.show()
+
+def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=None):
+    if size_mu_list is None or size_sigma_list is None:
+        print('Choose the values of size_mu and size_sigma you want to use for the Ridgeline Plot - for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma = get_size_input(sim)
+        size_mu_list = [size_mu]
+        size_sigma_list = [size_sigma]
+    else:
+        size_mu_list = size_mu_list
+        size_sigma_list = size_sigma_list
+    if size_mu_list is None or size_sigma_list is None:
+        return
+    print("size_mu_list:", size_mu_list)
+    print("size_sigma_list:", size_sigma_list)
+    headers = []
+    real_data_length = len(real)
+    max_graph = np.percentile(real, 99)  #Setting the max value for the x-axis to the 99th percentile of the real data.  May increase later if simulated data needs it.  
+    min_sim_length = float('inf')
+    for size_mu in size_mu_list:
+        for size_sigma in size_sigma_list:
+            sim_filtered = sim[(sim['size_mu'] == float(size_mu)) & (sim['size_sigma'] == float(size_sigma))]
+            sim_length = len(sim_filtered)
+            if sim_length < min_sim_length:
+                min_sim_length = sim_length
+    if real_data_length > 2*min_sim_length:
+        print("Your real data has more than twice as many data points as your simulated data - generate more simulated data to use this graphing method")
+        return
+    elif min_sim_length > 2*real_data_length:
+        data_length = min_sim_length
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = np.resize(real, data_length)  #Resizing the real data to fit the length of the dataframe - this will repeat values if there are fewer real data points than the length of the dataframe. 
+    elif real_data_length > min_sim_length:
+        data_length = min_sim_length
+        print (f"Warning: your real data has more data points than your simulated data - only the first {data_length} data points of your real data will be used for the ridgeline plot")
+        print (f"Consider generating more simulated data to use all of your real data in the ridgeline plot") 
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = real[:data_length]  
+    else:
+        data_length = real_data_length
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = real[:data_length] 
+
+    headers.append("Experimental Data")
+    max_graph = 0
+    for size_mu in size_mu_list:
+        for size_sigma in size_sigma_list:
+            print(f"size_mu: {size_mu}, size_sigma: {size_sigma}")
+            sim_filtered = sim[(sim['size_mu'] == float(size_mu)) & (sim['size_sigma'] == float(size_sigma))]
+            sim1 = sim_filtered['area_scaled']
+            sim1np = sim1.to_numpy()
+            max_99 = np.percentile(sim1np, 99)  #Setting the max value for the x-axis to the 99th percentile of the largest dataset to avoid outliers dominating the graph.
+            if max_99 > max_graph:
+                max_graph = max_99
+            data[f"mu = {size_mu}, sigma = {size_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
+            headers.append(f"mu = {size_mu}, sigma = {size_sigma}")
+    print("headers:", headers)
+    print("data:", data)
+    headersdf = pd.DataFrame({'headers': headers})
+    headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_area.csv"), index = False)  #Saving the headers to a csv file for later use
+    data.to_csv(os.path.join(directory, f"data_ridgeplot_area.csv"), index = False)  #Saving the data to a csv file for later use
+    print ("max value for x-axis:", max_graph)
+    samples=data.to_numpy().T
+    print("samples:", samples)
+
+    fig = ridgeplot(
+        samples=samples,
+        bandwidth=40,
+        kde_points=np.linspace(0, max_graph, 20),
+        colorscale="viridis",
+        colormode="row-index",
+        opacity=0.6,
+        labels=headers,
+        spacing=0.5,
+        )
+
+    # And you can still update and extend the final
+    # Plotly Figure using standard Plotly methods
+    fig.update_layout(
+        height=800,
+        width=800,
+        font_size=12,
+        plot_bgcolor="white",
+        #xaxis_tickvals=[-12.5, 0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100, 112.5],
+        #xaxis_ticktext=["", "0", "", "25", "", "50", "", "75", "", "100", ""],
+        xaxis_gridcolor="rgba(0, 0, 0, 0.1)",
+        yaxis_gridcolor="rgba(0, 0, 0, 0.1)",
+        #yaxis_title=dict(text="Assigned Probability (%)", font_size=13),
+        showlegend=False,
+    )
+
+    fig.show()
 
 main()
