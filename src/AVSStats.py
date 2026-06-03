@@ -147,10 +147,13 @@ def loadDataNumber(fileSelectOpt):
         # Adding zeros for the empty images. Verified to work.  
         noBodies = int(input("How many additional vacuole images were not analyzed because they did not contain any bodies?"))
         if noBodies > 0:
-            real_slices = real_slices['number'].astype(int)  
+            real_slices = real_slices['number'].astype(int)
+            print(real_slices)  
             addZeros = ([0]*noBodies)
-            addZeros = pd.DataFrame(addZeros, dtype = int)
+            addZeros = pd.DataFrame(addZeros, columns=['number'], dtype=int)
+            print(addZeros)
             real_slices = pd.concat([real_slices, addZeros], ignore_index = True) 
+            print(real_slices)
             real_slices.columns = ['number']
         real_body_number = real_slices['number'].astype(int) 
         print(real_body_number.head())  
@@ -450,8 +453,10 @@ def make_graph (real, sim, directory, programMode):
         if which_graph == "1":
             qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None) 
         elif which_graph == "2":
-            violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)   
+            violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)  
         elif which_graph == "3":
+            ridgelinePlot_number(real, sim, directory)   
+        elif which_graph == "4":
             cdfPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)
         else:
             print("Please choose an option 1 through 3 by typing that number")
@@ -484,7 +489,7 @@ def make_graph_multi(real, sim, directory, programMode):
         if which_graph == "1":
             qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None) 
         elif which_graph == "2":
-            violinPlot_number(real, sim, directory)   
+            ridgelinePlot_number(real, sim, directory)   
         elif which_graph == "3":
             cdfPlot_number(real, sim, directory)
         else:
@@ -666,8 +671,8 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         size_sigma_list = size_sigma_list
     if size_mu_list is None or size_sigma_list is None:
         return
-    print("size_mu_list:", size_mu_list)
-    print("size_sigma_list:", size_sigma_list)
+    #print("size_mu_list:", size_mu_list)
+    #print("size_sigma_list:", size_sigma_list)
     headers = []
     real_data_length = len(real)
     max_graph = np.percentile(real, 99)  #Setting the max value for the x-axis to the 99th percentile of the real data.  May increase later if simulated data needs it.  
@@ -709,6 +714,100 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
                 max_graph = max_99
             data[f"mu = {size_mu}, sigma = {size_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
             headers.append(f"mu = {size_mu}, sigma = {size_sigma}")
+    #print("headers:", headers)
+    #print("data:", data)
+    #headersdf = pd.DataFrame({'headers': headers})
+    #headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_area.csv"), index = False)  #Saving the headers to a csv file for later use
+    #data.to_csv(os.path.join(directory, f"data_ridgeplot_area.csv"), index = False)  #Saving the data to a csv file for later use
+    #print ("max value for x-axis:", max_graph)
+    samples=data.to_numpy().T
+    #print("samples:", samples)
+
+    fig = ridgeplot(
+        samples=samples,
+        bandwidth=40,
+        kde_points=np.linspace(0, max_graph, 20),
+        colorscale="viridis",
+        colormode="row-index",
+        opacity=0.6,
+        labels=headers,
+        spacing=0.5,
+        )
+
+    # And you can still update and extend the final
+    # Plotly Figure using standard Plotly methods
+    fig.update_layout(
+        height=800,
+        width=800,
+        font_size=12,
+        plot_bgcolor="white",
+        #xaxis_tickvals=[-12.5, 0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100, 112.5],
+        #xaxis_ticktext=["", "0", "", "25", "", "50", "", "75", "", "100", ""],
+        xaxis_gridcolor="rgba(0, 0, 0, 0.1)",
+        yaxis_gridcolor="rgba(0, 0, 0, 0.1)",
+        #yaxis_title=dict(text="Assigned Probability (%)", font_size=13),
+        showlegend=False,
+    )
+
+    fig.show()
+
+def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma_list=None):
+    if number_mu_list is None or number_sigma_list is None:
+        print('Choose the values of size_mu, size_sigma, number_mu and number_sigma you want to use for the Ridgeline Plot - for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+        number_mu_list = [number_mu]
+        number_sigma_list = [number_sigma]
+    else: 
+        number_mu_list = number_mu_list
+        number_sigma_list = number_sigma_list
+        print('Choose the values of size_mu and size_sigma you want to use for the Ridgeline Plot.')
+        size_mu, size_sigma = get_size_input(sim)
+        if size_mu is None or size_sigma is None:
+            return
+    print("number_mu_list:", number_mu_list)
+    print("number_sigma_list:", number_sigma_list)
+    headers = []
+    real_data_length = len(real)
+    max_graph = np.percentile(real, 99)  #Setting the max value for the x-axis to the 99th percentile of the real data.  May increase later if simulated data needs it.  
+    min_sim_length = float('inf')
+    sim = sim[(sim['size_mu'] == float(size_mu)) & (sim['size_sigma'] == float(size_sigma))]  #Filtering the data to only include the specified size mu and sigma, since those are not being varied in this graph.
+    for number_mu in number_mu_list:
+        for number_sigma in number_sigma_list:
+            sim_filtered = sim[(sim['number_mu'] == float(number_mu)) & (sim['number_sigma'] == float(number_sigma))]
+            sim_length = len(sim_filtered)
+            if sim_length < min_sim_length:
+                min_sim_length = sim_length
+    if real_data_length > 2*min_sim_length:
+        print("Your real data has more than twice as many data points as your simulated data - generate more simulated data to use this graphing method")
+        return
+    elif min_sim_length > 2*real_data_length:
+        data_length = min_sim_length
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = np.resize(real, data_length)  #Resizing the real data to fit the length of the dataframe - this will repeat values if there are fewer real data points than the length of the dataframe. 
+    elif real_data_length > min_sim_length:
+        data_length = min_sim_length
+        print (f"Warning: your real data has more data points than your simulated data - only the first {data_length} data points of your real data will be used for the ridgeline plot")
+        print (f"Consider generating more simulated data to use all of your real data in the ridgeline plot") 
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = real[:data_length]  
+    else:
+        data_length = real_data_length
+        data = pd.DataFrame(index=range(data_length))  #Creating an empty dataframe with the number of rows equal to the length of the smallest simulated data set
+        data['Experimental Data'] = real[:data_length] 
+
+    headers.append("Experimental Data")
+    max_graph = 0
+    for number_mu in number_mu_list:
+        for number_sigma in number_sigma_list:
+            print(f"number_mu: {number_mu}, number_sigma: {number_sigma}")
+            sim_filtered = sim[(sim['number_mu'] == float(number_mu)) & (sim['number_sigma'] == float(number_sigma))]
+            sim1 = sim_filtered['number']
+            sim1np = sim1.to_numpy()
+            max = sim1np.max()  #Setting the max value for the x-axis to the maximum value of the dataset.
+            if max > max_graph:
+                max_graph = max
+            data[f"mu = {number_mu}, sigma = {number_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
+            headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
     print("headers:", headers)
     print("data:", data)
     headersdf = pd.DataFrame({'headers': headers})
