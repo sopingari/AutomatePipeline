@@ -77,6 +77,7 @@ def main(fileSelectOpt = True, manual = True):
 
                 print("Here are your Kolomogorov-Smirnov results:")
                 print(KS_results)
+                print(KS_results.dtypes)
                 KS_heatmap(KS_results,  directory = directory)
                 print("KS results and heatmap saved to the same directory as your original real body data")
                 print("Here are your Epps-Singleton results:")
@@ -352,17 +353,20 @@ def multi_compare_area(real, sim, directory):
             splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
             ks, es = compare_distribs_area(real, splitter_data)
             print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma}is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue), float(ks.statistic_location)]], columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
             print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma} is {es.statistic:.9f}, and the p-value is {es.pvalue:.9E}. \n")
             es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
+    print (sorted_ks_results)
+    print (sorted_ks_results.dtypes)
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')     
     with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
         sorted_ks_results.to_csv(f, index = False) 
     with open(os.path.join(directory, 'es_results_area.csv'), 'w') as f:    
         sorted_es_results.to_csv(f, index = False)
+
     return sorted_ks_results, sorted_es_results 
 
 def multi_compare_number(real, sim, directory):
@@ -411,8 +415,12 @@ def multi_compare_number(real, sim, directory):
 def KS_heatmap(ks_results, directory):
     ks_pivot = ks_results.pivot(index = 'sigma', columns = 'mu', values = 'ks')
     print(ks_pivot)
+    print(ks_pivot.dtypes)
+    ks_pivot_nums = ks_pivot.astype(float)  
+    print(ks_pivot_nums)
+    print(ks_pivot_nums.dtypes)
     plt.figure(figsize = (10,8))
-    sns.heatmap(ks_pivot, annot = True, cmap = 'viridis')
+    sns.heatmap(ks_pivot_nums, annot = True, cmap = 'viridis')
     plt.title('KS statistic for different mu and sigma values')
     plt.xlabel('mu values')
     plt.ylabel('sigma values')
@@ -422,8 +430,12 @@ def KS_heatmap(ks_results, directory):
 def ES_heatmap(es_results, directory): 
     es_pivot = es_results.pivot(index = 'sigma', columns = 'mu', values = 'es_statistic')
     print(es_pivot)
+    print(es_pivot.dtypes)
+    es_pivot_nums = es_pivot.astype(float)
+    print(es_pivot_nums)
+    print(es_pivot_nums.dtypes)
     plt.figure(figsize = (10,8))
-    sns.heatmap(es_pivot, annot = True, cmap = 'viridis')
+    sns.heatmap(es_pivot_nums, annot = True, cmap = 'viridis')
     plt.title('Epps-Singleton statistic for different mu and sigma values')
     plt.xlabel('mu values')
     plt.ylabel('sigma values')
