@@ -467,7 +467,10 @@ def make_graph (real, sim, directory, programMode):
         elif which_graph == "2":
             violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)  
         elif which_graph == "3":
-            ridgelinePlot_number(real, sim, directory)   
+            size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+            number_mu_list = [number_mu]
+            number_sigma_list = [number_sigma]
+            ridgelinePlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = number_mu_list, number_sigma_list = number_sigma_list)   
         elif which_graph == "4":
             cdfPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None)
         else:
@@ -480,12 +483,13 @@ def make_graph_multi(real, sim, directory, programMode):
     print("[3]: Generate a CDF (cumulative distribution function) plot with all of the different mu and sigma combinations plotted together)")   
     which_graph = input(">>Please select an option: ") 
     if programMode == "1":
-    # I'll also need to edit the qqPlot function to take in mu and sigma as parameters to save the plots with different names.
         mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
         sigmas = sim['size_sigma'].value_counts().index.tolist()  # Extracts all of the different values of sigma
         mu_list = sorted(mus) 
         sigma_list = sorted(sigmas)
         if which_graph == "1":
+            print("The Q-Q plots will be generated one at a time and automatically saved to the same directory as your original real body data.")
+            print("You must close each Q-Q plot to see the next one.")
             for mu in mu_list:
                 for sigma in sigma_list:
                     qqPlot_area(real, sim, directory, size_mu = mu, size_sigma = sigma) 
@@ -496,24 +500,34 @@ def make_graph_multi(real, sim, directory, programMode):
         else:
             print("Please choose an option 1 through 3 by typing that number")
     elif programMode == "2":
-        input("Which graph would you like to generate to visualize the differences between your real and simulated body number data?)")
-        which_graph = input(">>Please select an option: ")
+        mus = sim['number_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
+        sigmas = sim['number_sigma'].value_counts().index.tolist()  # Extracts all of the different values of sigma
+        mu_list = sorted(mus) 
+        sigma_list = sorted(sigmas)
+        size_mu = None
+        size_sigma = None
+        while size_mu is None or size_sigma is None:
+            size_mu, size_sigma = get_size_input(sim)
         if which_graph == "1":
-            qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None) 
+            print("The Q-Q plots will be generated one at a time and automatically saved to the same directory as your original real body data.")
+            print("You must close each Q-Q plot to see the next one.")
+            for mu in mu_list:
+                for sigma in sigma_list:
+                    qqPlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu = mu, number_sigma = sigma) 
         elif which_graph == "2":
-            ridgelinePlot_number(real, sim, directory)   
+            ridgelinePlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)   
         elif which_graph == "3":
-            cdfPlot_number(real, sim, directory)
+            cdfPlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)
         else:
             print("Please choose an option 1 through 3 by typing that number")
 
 def get_size_input(sim):
-    print(sim["size_mu"].values)
+    print ("available size mus:", list(sim['size_mu'].unique()))
     size_mu = float(input("Input the size_mu you want to use: "))
     if size_mu not in sim['size_mu'].values:
         print("No data found for that size mu - choose a different value ")
         return None, None 
-    print(sim["size_sigma"].values)  
+    print ("available size sigmas:", list(sim['size_sigma'].unique()))
     size_sigma = float(input("Input the size_sigma you want to use: "))
     if size_sigma not in sim['size_sigma'].values:
         print("No data found for that size sigma - choose a different value")
@@ -521,23 +535,48 @@ def get_size_input(sim):
     return size_mu, size_sigma
 
 def get_number_input(sim):
+    size_mus = list(sim['size_mu'].unique())
+    print (f"available size mus: {size_mus}")
     size_mu = float(input("Input the size_mu you want to use: "))
     if size_mu not in sim['size_mu'].values:
         print("No data found for that size mu - choose a different value ")
         return None, None, None, None 
+    
+    size_sigmas = list(sim['size_sigma'].unique())
+    print (f"available size sigmas: {size_sigmas}")
     size_sigma = float(input("Input the size_sigma you want to use: "))
     if size_sigma not in sim['size_sigma'].values:
         print("No data found for that size sigma - choose a different value")
         return None, None, None, None
+    
+    number_mus = list(sim['number_mu'].unique())
+    print (f"available number mus: {number_mus}")
     number_mu = float(input("Input the number_mu you want to use: "))
     if number_mu not in sim['number_mu'].values:
         print("No data found for that number mu - choose a different value")
         return None, None, None, None  
+    
+    number_sigmas = list(sim['number_sigma'].unique())
+    print (f"available number sigmas: {number_sigmas}")
     number_sigma = float(input("Input the number_sigma you want to use: "))
     if number_sigma not in sim['number_sigma'].values:
         print("No data found for that number sigma - choose a different value")
         return None, None, None, None
+    
     return size_mu, size_sigma, number_mu, number_sigma
+
+def get_number_only_input(sim):
+    print ("available number mus:", list(sim['number_mu'].unique()))
+    number_mu = float(input("Input the number_mu you want to use: "))
+    if number_mu not in sim['number_mu'].values:
+        print("No data found for that number mu - choose a different value")
+        return None, None, None, None  
+    print ("available number sigmas:", list(sim['number_sigma'].unique()))
+    number_sigma = float(input("Input the number_sigma you want to use: "))
+    if number_sigma not in sim['number_sigma'].values:
+        print("No data found for that number sigma - choose a different value")
+        return None, None, None, None
+    return number_mu, number_sigma
 
 def qqPlot_area(real, sim, directory, size_mu = None, size_sigma = None):
     if size_mu is None or size_sigma is None:
@@ -559,10 +598,14 @@ def qqPlot_area(real, sim, directory, size_mu = None, size_sigma = None):
     plt.show()
 
 def qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None):
-    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+    if (number_mu is None or number_sigma is None) and (size_mu is None or size_sigma is None):
         print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
         print('- for example, the values that gave the lowest KS statistic.')
         size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+    elif (number_mu is None or number_sigma is None) and (size_mu is not None or size_sigma is not None):
+        size_mu = size_mu
+        size_sigma = size_sigma
+        number_mu, number_sigma = get_number_only_input(sim)
     else:
         size_mu = size_mu
         size_sigma = size_sigma
@@ -673,6 +716,7 @@ def cdfPlot_number(real, sim, directory):
     plt.show()
 
 def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=None):
+    print("running ridgelinePlot_area")
     if size_mu_list is None or size_sigma_list is None:
         print('Choose the values of size_mu and size_sigma you want to use for the Ridgeline Plot - for example, the values that gave the lowest KS statistic.')
         size_mu, size_sigma = get_size_input(sim)
@@ -683,8 +727,6 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         size_sigma_list = size_sigma_list
     if size_mu_list is None or size_sigma_list is None:
         return
-    #print("size_mu_list:", size_mu_list)
-    #print("size_sigma_list:", size_sigma_list)
     headers = []
     real_data_length = len(real)
     max_graph = np.percentile(real, 99)  #Setting the max value for the x-axis to the 99th percentile of the real data.  May increase later if simulated data needs it.  
@@ -693,9 +735,11 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         for size_sigma in size_sigma_list:
             sim_filtered = sim[(sim['size_mu'] == float(size_mu)) & (sim['size_sigma'] == float(size_sigma))]
             sim_length = len(sim_filtered)
-            if sim_length < min_sim_length:
+            if sim_length < min_sim_length and sim_length > 0:  #Finding the length of the smallest simulated data set that is being plotted to use for resizing
                 min_sim_length = sim_length
     if real_data_length > 2*min_sim_length:
+        print ("realy data length:", real_data_length)
+        print ("min sim length:", min_sim_length)
         print("Your real data has more than twice as many data points as your simulated data - generate more simulated data to use this graphing method")
         return
     elif min_sim_length > 2*real_data_length:
@@ -714,26 +758,19 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         data['Experimental Data'] = real[:data_length] 
 
     headers.append("Experimental Data")
-    max_graph = 0
     for size_mu in size_mu_list:
         for size_sigma in size_sigma_list:
             print(f"size_mu: {size_mu}, size_sigma: {size_sigma}")
             sim_filtered = sim[(sim['size_mu'] == float(size_mu)) & (sim['size_sigma'] == float(size_sigma))]
             sim1 = sim_filtered['area_scaled']
-            sim1np = sim1.to_numpy()
-            max_99 = np.percentile(sim1np, 99)  #Setting the max value for the x-axis to the 99th percentile of the largest dataset to avoid outliers dominating the graph.
-            if max_99 > max_graph:
-                max_graph = max_99
-            data[f"mu = {size_mu}, sigma = {size_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
-            headers.append(f"mu = {size_mu}, sigma = {size_sigma}")
-    #print("headers:", headers)
-    #print("data:", data)
-    #headersdf = pd.DataFrame({'headers': headers})
-    #headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_area.csv"), index = False)  #Saving the headers to a csv file for later use
-    #data.to_csv(os.path.join(directory, f"data_ridgeplot_area.csv"), index = False)  #Saving the data to a csv file for later use
-    #print ("max value for x-axis:", max_graph)
+            if len(sim1) > 0:
+                sim1np = sim1.to_numpy()
+                max_99 = np.percentile(sim1np, 99)  #Setting the max value for the x-axis to the 99th percentile of the largest dataset to avoid outliers dominating the graph.
+                if max_99 > max_graph:
+                    max_graph = max_99
+                data[f"mu = {size_mu}, sigma = {size_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
+                headers.append(f"mu = {size_mu}, sigma = {size_sigma}")
     samples=data.to_numpy().T
-    #print("samples:", samples)
 
     fig = ridgeplot(
         samples=samples,
@@ -746,8 +783,6 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         spacing=0.5,
         )
 
-    # And you can still update and extend the final
-    # Plotly Figure using standard Plotly methods
     fig.update_layout(
         height=800,
         width=800,
@@ -762,20 +797,10 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
     )
 
     fig.show()
+    fig.write_image(os.path.join(directory, f"Ridgeline_plot_area.png"))
 
-def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma_list=None):
-    if number_mu_list is None or number_sigma_list is None:
-        print('Choose the values of size_mu, size_sigma, number_mu and number_sigma you want to use for the Ridgeline Plot - for example, the values that gave the lowest KS statistic.')
-        size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
-        number_mu_list = [number_mu]
-        number_sigma_list = [number_sigma]
-    else: 
-        number_mu_list = number_mu_list
-        number_sigma_list = number_sigma_list
-        print('Choose the values of size_mu and size_sigma you want to use for the Ridgeline Plot.')
-        size_mu, size_sigma = get_size_input(sim)
-        if size_mu is None or size_sigma is None:
-            return
+def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu_list=None, number_sigma_list=None):
+    print("running ridgelinePlot_number")
     print("number_mu_list:", number_mu_list)
     print("number_sigma_list:", number_sigma_list)
     headers = []
@@ -787,8 +812,10 @@ def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma
         for number_sigma in number_sigma_list:
             sim_filtered = sim[(sim['number_mu'] == float(number_mu)) & (sim['number_sigma'] == float(number_sigma))]
             sim_length = len(sim_filtered)
-            if sim_length < min_sim_length:
+            if (sim_length < min_sim_length) and (sim_length > 0):  #Finding the length of the smallest simulated data set that is being plotted to use for resizing the real data if necessary.
                 min_sim_length = sim_length
+    print ("realy data length:", real_data_length)
+    print ("min sim length:", min_sim_length)
     if real_data_length > 2*min_sim_length:
         print("Your real data has more than twice as many data points as your simulated data - generate more simulated data to use this graphing method")
         return
@@ -808,31 +835,31 @@ def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma
         data['Experimental Data'] = real[:data_length] 
 
     headers.append("Experimental Data")
-    max_graph = 0
     for number_mu in number_mu_list:
         for number_sigma in number_sigma_list:
             print(f"number_mu: {number_mu}, number_sigma: {number_sigma}")
             sim_filtered = sim[(sim['number_mu'] == float(number_mu)) & (sim['number_sigma'] == float(number_sigma))]
             sim1 = sim_filtered['number']
-            sim1np = sim1.to_numpy()
-            max = sim1np.max()  #Setting the max value for the x-axis to the maximum value of the dataset.
-            if max > max_graph:
-                max_graph = max
-            data[f"mu = {number_mu}, sigma = {number_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
-            headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
+            if len(sim1) > 0:    # To avoid getting an error from mu and sigma combinations not included in the simulate dataset
+                sim1np = sim1.to_numpy()
+                max = sim1np.max()  #Setting the max value for the x-axis to the maximum value of the dataset.
+                if max > max_graph:
+                    max_graph = max
+                data[f"mu = {number_mu}, sigma = {number_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
+                headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
     print("headers:", headers)
     print("data:", data)
     headersdf = pd.DataFrame({'headers': headers})
-    headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_area.csv"), index = False)  #Saving the headers to a csv file for later use
-    data.to_csv(os.path.join(directory, f"data_ridgeplot_area.csv"), index = False)  #Saving the data to a csv file for later use
+    headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_number.csv"), index = False)  #Saving the headers to a csv file for later use
+    data.to_csv(os.path.join(directory, f"data_ridgeplot_number.csv"), index = False)  #Saving the data to a csv file for later use
     print ("max value for x-axis:", max_graph)
     samples=data.to_numpy().T
     print("samples:", samples)
 
     fig = ridgeplot(
         samples=samples,
-        bandwidth=40,
-        kde_points=np.linspace(0, max_graph, 20),
+        bandwidth=1,
+        kde_points=np.linspace(0, max_graph, 100),
         colorscale="viridis",
         colormode="row-index",
         opacity=0.6,
@@ -840,8 +867,6 @@ def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma
         spacing=0.5,
         )
 
-    # And you can still update and extend the final
-    # Plotly Figure using standard Plotly methods
     fig.update_layout(
         height=800,
         width=800,
@@ -856,5 +881,6 @@ def ridgelinePlot_number(real, sim, directory, number_mu_list=None, number_sigma
     )
 
     fig.show()
+    fig.write_image(os.path.join(directory, f"Ridgeline_plot_area.png"))
 
 main()
