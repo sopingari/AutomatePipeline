@@ -194,16 +194,11 @@ def loadDataNumber(fileSelectOpt):
                     for number_sigma in number_sigmas:
                         split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
                         split_slices = split_slices[sim_slices.time != 'time']  #Removing non-number rows (left-over headers).  This works 
-                        #split_slices.to_csv(os.path.join(directory, f"split_slices_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the split slices to a csv file for verification
                         split_slices_noNaN = split_slices.dropna( axis = 0)   #Removing rows that had "NaN" because there were no bodies captured in that slice
-                        #split_slices_noNaN.to_csv(os.path.join(directory, f"split_slices_noNaN_number_mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the split slices with no NaN's to a csv file for verification #For verification
                         empty_slice_num = split_slices.shape[0] - split_slices_noNaN.shape[0]   #Calculating the number of rows that had "NaN" because there were no bodies captured in that slice
-                        #print("empty slice num", empty_slice_num)  #For verification
                         empty_slices = [0]*empty_slice_num      #Creating a list of 0's to represent the empty slices
-                        #print ("empty slices", empty_slices)  #For verification
                         sim_body_number = pd.DataFrame({'number': split_slices_noNaN['time'].value_counts().to_list()})  #Each unique timestamp is a slice
                         sim_body_number = pd.concat([sim_body_number, pd.DataFrame({'number' : empty_slices })], ignore_index = True)   #Adding in the rows for the empty slices
-                        # sim_body_number.to_csv(os.path.join(directory, f"sim_body_number__mu{number_mu}_sigma{number_sigma}.csv"), index = False)  #Saving the simulated body numbers to a csv file for verification
                         size_mu_list = [float(size_mu)]*len(sim_body_number)  #Creating a list of the size_mu value to add to the dataframe
                         size_sigma_list = [float(size_sigma)]*len(sim_body_number)
                         number_mu_list = [float(number_mu)]*len(sim_body_number)  
@@ -212,11 +207,8 @@ def loadDataNumber(fileSelectOpt):
                         sim_body_number['size_sigma'] = size_sigma_list  #Adding the size_sigma value to the dataframe
                         sim_body_number['number_mu'] = number_mu_list  #Adding the number_mu value  to the dataframe
                         sim_body_number['number_sigma'] = number_sigma_list  #Adding the number_sigma value to the dataframe
-                        #print("single slice", sim_body_number.head())  #For verification  
                         sim_body_numbers = pd.concat([sim_body_numbers, sim_body_number], ignore_index = True)  # putting it all together
         print(sim_body_numbers.head())  #For verification
-        # with open('sim_body_numbers.csv', 'w') as f:  #Saving the simulated body numbers to a csv file for verfication
-        #     sim_body_numbers.to_csv(f, index = False)
         print ('Your body number data has been loaded and is ready to use')
         return real_body_number, sim_body_numbers, directory
 
@@ -453,7 +445,7 @@ def make_graph (real, sim, directory, programMode):
         if which_graph == "1":
             qqPlot_area(real, sim, directory) 
         elif which_graph == "2":
-            violinPlot_area(real, sim, directory) 
+            violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list = None) 
         elif which_graph == "3":
             ridgelinePlot_area(real, sim, directory)  
         elif which_graph == "4":
@@ -627,8 +619,8 @@ def qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, numbe
 
 
 def violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list = None):
-    print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
     if size_mu_list is None or size_sigma_list is None:
+        print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
         size_mu, size_sigma = get_size_input(sim)
         size_mu_list = [size_mu]
         size_sigma_list = [size_sigma]
@@ -643,37 +635,47 @@ def violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list =
             sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
             sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
             sim = sim['area_scaled']
-            new_data = [sim]
-            data.append(new_data)
+            data = [real, sim]
 
             fig=plt.figure()
             ax = fig.add_subplot(111)   
             sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", f"mu = {size_mu}, sigma = {size_sigma}"])
             ax.set_xlabel("Data Sets")
             ax.set_ylabel("Body Crossectional Area (square nm)")   
-            plt.savefig(os.path.join(directory, f"Violin_plot_real_vs_simulated.png"))
+            plt.savefig(os.path.join(directory, f"Violin_plot_size_mu_{size_mu}_size_sigma_{size_sigma}.png"))
             plt.show()
-1
-def violinPlot_number(real, sim, directory):
-    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the Q-Q plot)')
-    print('- for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
-    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+
+def violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None):
+    if number_mu_list is None or number_sigma_list is None:
+        print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the violin plot)')
+        print('- for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+        number_mu_list = [number_mu]
+        number_sigma_list = [number_sigma]
+    else:
+        number_mu_list = number_mu_list
+        number_sigma_list = number_sigma_list    
+        size_mu, number_mu = get_size_input(sim) 
+    if size_mu is None or size_sigma is None or number_mu_list is None or number_sigma_list is None:
         return
-    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-    sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
-    sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
-    sim = sim['number']
-    data = [real, sim]
     
-    fig=plt.figure()
-    ax = fig.add_subplot(111)   
-    sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
-    ax.set_xlabel("Data Sets")
-    ax.set_ylabel("Body Number per Slice")   
-    plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
-    plt.show()
+    for number_mu in number_mu_list:
+        for number_sigma in number_sigma_list:
+            sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+            sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+            sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+            sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+            sim = sim['number']
+            data = [real, sim]
+    
+            fig=plt.figure()
+            ax = fig.add_subplot(111)   
+            sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
+            ax.set_title(f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}")
+            ax.set_xlabel("Data Sets")
+            ax.set_ylabel("Body Number per Slice")   
+            plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+            plt.show()
 
 def cdfPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
