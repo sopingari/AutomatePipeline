@@ -471,8 +471,9 @@ def make_graph (real, sim, directory, programMode):
 def make_graph_multi(real, sim, directory, programMode):
     print(">>Which graph would you like to generate to visualize the differences between your real and simulated body size data?")
     print("[1]: Generate a set of Q-Q (quantile-quantile) plots of the simulated data vs the real data for different mu and sigma combinations)")
-    print("[2]: Generate a Ridgeline Plot with all of the different mu and sigma combinations plotted together")
-    print("[3]: Generate a CDF (cumulative distribution function) plot with all of the different mu and sigma combinations plotted together)")   
+    print("[2]: Generate a set of violin plots of the simulated data vs the real data for  different mu and sigma combinations")
+    print("[3]: Generate a Ridgeline Plot with all of the different mu and sigma combinations plotted together")
+    print("[4]: Generate a CDF (cumulative distribution function) plot with all of the different mu and sigma combinations plotted together)")   
     which_graph = input(">>Please select an option: ") 
     if programMode == "1":
         mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
@@ -486,11 +487,15 @@ def make_graph_multi(real, sim, directory, programMode):
                 for sigma in sigma_list:
                     qqPlot_area(real, sim, directory, size_mu = mu, size_sigma = sigma) 
         elif which_graph == "2":
-            ridgelinePlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)   
+            print("The violin plots will be generated one at a time and automatically saved to the same directory as your original real body data.")
+            print("You must close each violin plot to see the next one.")
+            violinPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)
         elif which_graph == "3":
+            ridgelinePlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)   
+        elif which_graph == "4":
             cdfPlot_area(real, sim, directory, size_mu_list = mu_list, size_sigma_list = sigma_list)
         else:
-            print("Please choose an option 1 through 3 by typing that number")
+            print("Please choose an option 1 through 4 by typing that number")
     elif programMode == "2":
         mus = sim['number_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
         sigmas = sim['number_sigma'].value_counts().index.tolist()  # Extracts all of the different values of sigma
@@ -507,11 +512,15 @@ def make_graph_multi(real, sim, directory, programMode):
                 for sigma in sigma_list:
                     qqPlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu = mu, number_sigma = sigma) 
         elif which_graph == "2":
-            ridgelinePlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)   
+            print("The violin plots will be generated one at a time and automatically saved to the same directory as your original real body data.")
+            print("You must close each violin plot to see the next one.")
+            violinPlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)
         elif which_graph == "3":
+            ridgelinePlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)   
+        elif which_graph == "4":
             cdfPlot_number(real, sim, directory, size_mu = size_mu, size_sigma = size_sigma, number_mu_list = mu_list, number_sigma_list = sigma_list)
         else:
-            print("Please choose an option 1 through 3 by typing that number")
+            print("Please choose an option 1 through 4 by typing that number")
 
 def get_size_input(sim):
     print ("available size mus:", list(sim['size_mu'].unique()))
@@ -629,53 +638,60 @@ def violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list =
         size_sigma_list = size_sigma_list     
     if size_mu_list is None or size_sigma_list is None:       
         return
-    data = [real]
     for size_mu in size_mu_list:
         for size_sigma in size_sigma_list:
-            sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-            sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-            sim = sim['area_scaled']
-            data = [real, sim]
+            sim_f = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+            sim_f = sim_f[(sim_f['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+            sim_f = sim_f['area_scaled']
+            data = [real, sim_f]
 
-            fig=plt.figure()
-            ax = fig.add_subplot(111)   
-            sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", f"mu = {size_mu}, sigma = {size_sigma}"])
-            ax.set_xlabel("Data Sets")
-            ax.set_ylabel("Body Crossectional Area (square nm)")   
-            plt.savefig(os.path.join(directory, f"Violin_plot_size_mu_{size_mu}_size_sigma_{size_sigma}.png"))
-            plt.show()
+            if len(sim_f) > 0:   # To skip any mu and sigma combinations that don't have any simulated data
+                fig=plt.figure()
+                ax = fig.add_subplot(111)   
+                sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", f"mu = {size_mu}, sigma = {size_sigma}"])
+                ax.set_xlabel("Data Sets")
+                ax.set_ylabel("Body Crossectional Area (square nm)")   
+                plt.savefig(os.path.join(directory, f"Violin_plot_size_mu_{size_mu}_size_sigma_{size_sigma}.png"))
+                plt.show()
 
-def violinPlot_number(real, sim, directory, number_mu_list = None, number_sigma_list = None):
-    if number_mu_list is None or number_sigma_list is None:
+def violinPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu_list = None, number_sigma_list = None):
+    if (number_mu_list is None or number_sigma_list is None) and (size_mu is None or size_sigma is None):
         print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the violin plot)')
         print('- for example, the values that gave the lowest KS statistic.')
         size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
         number_mu_list = [number_mu]
         number_sigma_list = [number_sigma]
-    else:
+    elif (number_mu_list is not None and number_sigma_list is not None) and (size_mu is None or size_sigma is None):
+        print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
         number_mu_list = number_mu_list
         number_sigma_list = number_sigma_list    
-        size_mu, number_mu = get_size_input(sim) 
+        size_mu, size_sigma = get_size_input(sim)
+    else:
+        number_mu_list = number_mu_list
+        number_sigma_list = number_sigma_list
+        size_mu = size_mu
+        size_sigma = size_sigma 
     if size_mu is None or size_sigma is None or number_mu_list is None or number_sigma_list is None:
         return
     
     for number_mu in number_mu_list:
         for number_sigma in number_sigma_list:
-            sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-            sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-            sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
-            sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
-            sim = sim['number']
-            data = [real, sim]
-    
-            fig=plt.figure()
-            ax = fig.add_subplot(111)   
-            sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
-            ax.set_title(f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}")
-            ax.set_xlabel("Data Sets")
-            ax.set_ylabel("Body Number per Slice")   
-            plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
-            plt.show()
+            sim_f = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+            sim_f = sim_f[(sim_f['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+            sim_f = sim_f[(sim_f['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+            sim_f = sim_f[(sim_f['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+            sim_f = sim_f['number']
+            data = [real, sim_f]
+
+            if len(sim_f) > 0:   # To skip any mu and sigma combinations that don't have any simulated data
+                fig=plt.figure()
+                ax = fig.add_subplot(111)   
+                sm.graphics.violinplot(data, ax=ax, labels=["Experimental Data", "Simulated Data"])
+                ax.set_title(f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}")
+                ax.set_xlabel("Data Sets")
+                ax.set_ylabel("Body Number per Slice")   
+                plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+                plt.show()
 
 def cdfPlot_area(real, sim, directory):
     print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
