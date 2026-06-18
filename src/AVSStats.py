@@ -592,11 +592,12 @@ def qqPlot_area(real, sim, directory, size_mu = None, size_sigma = None):
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
     sim = sim['area_scaled']
 
-    plotA = sm.ProbPlot(real)
-    plotB = sm.ProbPlot(sim)
-    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for mu = {size_mu}, sigma = {size_sigma}')  
-    plt.savefig(os.path.join(directory, f"QQ_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
-    plt.show()
+    if len(sim) > 0:   # To skip any mu and sigma combinations that don't have any simulated data
+        plotA = sm.ProbPlot(real)
+        plotB = sm.ProbPlot(sim)
+        qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for mu = {size_mu}, sigma = {size_sigma}')  
+        plt.savefig(os.path.join(directory, f"QQ_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
+        plt.show()
 
 def qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu = None, number_sigma = None):
     if (number_mu is None or number_sigma is None) and (size_mu is None or size_sigma is None):
@@ -620,11 +621,12 @@ def qqPlot_number(real, sim, directory, size_mu = None, size_sigma = None, numbe
     sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
     sim = sim['number']
 
-    plotA = sm.ProbPlot(real)
-    plotB = sm.ProbPlot(sim)
-    qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for number_mu = {number_mu}, sigma = {number_sigma}')  
-    plt.savefig(os.path.join(directory, f"QQ_plot_numberMu{number_mu}_numberSigma{number_sigma}.png"))
-    plt.show()
+    if len(sim) > 0:   # To skip any mu and sigma combinations that don't have any simulated data
+        plotA = sm.ProbPlot(real)
+        plotB = sm.ProbPlot(sim)
+        qqplot_2samples(plotA,plotB, line='r', xlabel = 'Quantiles of Experimental Data', ylabel =f'Quantiles for number_mu = {number_mu}, sigma = {number_sigma}')  
+        plt.savefig(os.path.join(directory, f"QQ_plot_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+        plt.show()
 
 
 def violinPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list = None):
