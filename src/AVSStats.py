@@ -695,45 +695,147 @@ def violinPlot_number(real, sim, directory, size_mu = None, size_sigma = None, n
                 plt.savefig(os.path.join(directory, f"Violin_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
                 plt.show()
 
-def cdfPlot_area(real, sim, directory):
-    print('Choose the values of size_mu and size_sigma you want to use for the violin plot - for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma = get_size_input(sim)   
-    if size_mu is None or size_sigma is None:
+def cdfPlot_area(real, sim, directory, size_mu_list = None, size_sigma_list = None):
+    if size_mu_list is None or size_sigma_list is None:
+        print('Choose the values of size_mu and size_sigma you want to use for the Q-Q plot - for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma = get_size_input(sim)
+        organization = "0"
+    else:
+        size_mu, size_sigma = None, None
+        print("Would you like each plot to show all values of size_mu, or all values of size_sigma?")
+        print("Multiple plots will be generated to cover all of your data in either case")
+        print("[1]: Each plot should show all values of mu for a single value of sigma")
+        print("[2]: Each plot should show all values of sigma for a single value of mu")
+        organization = input()
+    if (size_mu is None or size_sigma is None) and (size_mu_list is None or size_sigma_list is None):
         return
-    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-    sim = sim['area_scaled']
-    plt.figure()
-    plt.title(f"CDF Plot for mu = {size_mu} and sigma = {size_sigma}")
-    plt.xlabel("Body Crossectional Area (square nm)")
-    plt.ylabel("Cumulative Probability")
-    plt.grid()
-    plt.ecdf(real, label = 'Real Data')
-    plt.ecdf(sim, label = 'Simulated Data')
-    plt.legend()
-    plt.savefig(os.path.join(directory, f"CDF_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
-    plt.show()
+    
+    if organization == "0":  # Making only a single graph
+        sim_f = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+        sim_f = sim_f[(sim_f['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+        sim_f = sim_f['area_scaled']
 
-def cdfPlot_number(real, sim, directory):
-    print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the CDF plot - for example, the values that gave the lowest KS statistic.')
-    size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
-    if size_mu is None or size_sigma is None or number_mu is None or number_sigma is None:
+        plt.figure()
+        plt.title(f"CDF Plot for mu = {size_mu} and sigma = {size_sigma}")
+        plt.xlabel("Body Crossectional Area (square nm)")
+        plt.ylabel("Cumulative Probability")
+        plt.grid()
+        plt.ecdf(real, label = 'Real Data')
+        plt.ecdf(sim_f, label = 'Simulated Data')
+        plt.legend()
+        plt.savefig(os.path.join(directory, f"CDF_plot_area_mu{size_mu}_sigma{size_sigma}.png"))
+        plt.show()
+
+    elif organization == "1":  # One plot per sigma, with all mus plotted on each graph
+        for size_sigma in size_sigma_list:
+            sim_f = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+            plt.figure()
+            plt.title(f"CDF Plot for Size Sigma = {size_sigma}")
+            plt.xlabel("Body Crossectional Area (square nm)")
+            plt.ylabel("Cumulative Probability")
+            plt.grid()
+            plt.ecdf(real, label = 'Real Data')
+            for size_mu in size_mu_list:
+                sim_f2 = sim_f[(sim_f['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu    
+                sim_f2 = sim_f2['area_scaled']
+                if len(sim_f2) > 0:   # To skip any mu and sigma combinations that don't have any simulated data    
+                    plt.ecdf(sim_f2, label = f"Mu = {size_mu}")
+            plt.legend()
+            plt.savefig(os.path.join(directory, f"CDF_plot_area_sizeSigma{size_sigma}.png"))
+            plt.show()
+
+    elif organization == "2":  # One plot per mu, with all sigmas plotted on each graph
+        for size_mu in size_mu_list:
+            sim_f = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+            plt.figure()
+            plt.title(f"CDF Plot for Size Mu = {size_mu}")
+            plt.xlabel("Body Crossectional Area (square nm)")
+            plt.ylabel("Cumulative Probability")
+            plt.grid()
+            plt.ecdf(real, label = 'Real Data')
+            for size_sigma in size_sigma_list:
+                sim_f2 = sim_f[(sim_f['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma    
+                sim_f2 = sim_f2['area_scaled']
+                if len(sim_f2) > 0:   # To skip any mu and sigma combinations that don't have any simulated data    
+                    plt.ecdf(sim_f2, label = f"Sigma = {size_sigma}")
+            plt.legend()
+            plt.savefig(os.path.join(directory, f"CDF_plot_area_sizeSigma{size_sigma}.png"))
+            plt.show()
+
+def cdfPlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu_list = None, number_sigma_list = None):
+    organization = None
+    if (number_mu_list is None or number_sigma_list is None) and (size_mu is None or size_sigma is None):
+        print('Choose the values of size_mu, size_sigma, number_mu, and number_sigma you want to use for the CDF plot - for example, the values that gave the lowest KS statistic.')
+        size_mu, size_sigma, number_mu, number_sigma = get_number_input(sim)
+        organization = "0"
+    elif (number_mu_list is not None and number_sigma_list is not None) and (size_mu is None or size_sigma is None):
+        number_mu, number_sigma = None, None
+        print('Choose the values of size_mu and size_sigma you want to use for the CDF plot - for example, the values that gave the lowest KS statistic.')
+        number_mu_list = number_mu_list
+        number_sigma_list = number_sigma_list    
+        size_mu, size_sigma = get_size_input(sim)
+    else: number_mu, number_sigma = None, None
+    if organization == None:
+        print("Would you like each plot to show all values of number_mu, or all values of number_sigma?")
+        print("Multiple plots will be generated to cover all of your data in either case")
+        print("[1]: Each plot should show all values of number_mu for a single value of number_sigma")
+        print("[2]: Each plot should show all values of number_sigma for a single value of number_mu")
+        organization = input()
+    if (size_mu is None or size_sigma is None) or ((number_mu is None or number_sigma is None) and (number_mu_list is None or number_sigma_list is None)):
         return
-    sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
-    sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
-    sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
-    sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
-    sim = sim['number']
-    plt.figure()
-    plt.title(f"CDF Plot for size mu = {size_mu}, size sigma = {size_sigma}, number mu = {number_mu}, and number sigma = {number_sigma}")
-    plt.xlabel("Body Number per Slice")
-    plt.ylabel("Cumulative Probability")
-    plt.grid()
-    plt.ecdf(real, label = 'Real Data')
-    plt.ecdf(sim, label = 'Simulated Data')
-    plt.legend()
-    plt.savefig(os.path.join(directory, f"CDF_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
-    plt.show()
+    
+    if organization == "0":  # Making only a single graph
+        sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
+        sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
+        sim = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+        sim = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+        sim = sim['number']
+        plt.figure()
+        plt.title(f"CDF Plot for size mu = {size_mu}, size sigma = {size_sigma}, number mu = {number_mu}, and number sigma = {number_sigma}")
+        plt.xlabel("Body Number per Slice")
+        plt.ylabel("Cumulative Probability")
+        plt.grid()
+        plt.ecdf(real, label = 'Real Data')
+        plt.ecdf(sim, label = 'Simulated Data')
+        plt.legend()
+        plt.savefig(os.path.join(directory, f"CDF_plot_number_sizeMu{size_mu}_sizeSigma{size_sigma}_numberMu{number_mu}_numberSigma{number_sigma}.png"))
+        plt.show()
+    
+    elif organization == "1":  # One plot per number_sigma, with all number_mus plotted on each graph
+        for number_sigma in number_sigma_list:
+            sim_f = sim[(sim['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma
+            plt.figure()
+            plt.title(f"CDF Plot for Number Sigma = {number_sigma}")
+            plt.xlabel("Body Number per Slice")
+            plt.ylabel("Cumulative Probability")
+            plt.grid()
+            plt.ecdf(real, label = 'Real Data')
+            for number_mu in number_mu_list:
+                sim_f2 = sim_f[(sim_f['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu    
+                sim_f2 = sim_f2['number']
+                if len(sim_f2) > 0:   # To skip any mu and sigma combinations that don't have any simulated data    
+                    plt.ecdf(sim_f2, label = f"Number Mu = {number_mu}")
+            plt.legend()
+            plt.savefig(os.path.join(directory, f"CDF_plot_number_numberSigma{number_sigma}.png"))
+            plt.show()
+        
+    elif organization == "2":  # One plot per number_mu, with all number_sigmas plotted on each graph
+        for number_mu in number_mu_list:
+            sim_f = sim[(sim['number_mu']) == float(number_mu)]  #filters the data to only include the specified number mu
+            plt.figure()
+            plt.title(f"CDF Plot for Number Mu = {number_mu}")
+            plt.xlabel("Body Number per Slice")
+            plt.ylabel("Cumulative Probability")
+            plt.grid()
+            plt.ecdf(real, label = 'Real Data')
+            for number_sigma in number_sigma_list:
+                sim_f2 = sim_f[(sim_f['number_sigma']) == float(number_sigma)]  #filters the data to only include the specified number sigma    
+                sim_f2 = sim_f2['number']
+                if len(sim_f2) > 0:   # To skip any mu and sigma combinations that don't have any simulated data    
+                    plt.ecdf(sim_f2, label = f"Number Sigma = {number_sigma}")
+            plt.legend()
+            plt.savefig(os.path.join(directory, f"CDF_plot_number_numberMu{number_mu}.png"))
+            plt.show()
 
 def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=None):
     print("running ridgelinePlot_area")
