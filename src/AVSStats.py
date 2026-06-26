@@ -51,10 +51,10 @@ def main(fileSelectOpt = True, manual = True):
                         loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
-                    try:
-                        findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
+                    #except:
+                        #loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -226,9 +226,11 @@ def findAverage_size(real, sim, directory):
     # Summarizes the real data from the real slices
     print ("\nHere are the statistics for your real data:") 
     print(f"You have slices from {len(data)} bodies.")
-    print("Average Body Slice Area = %d" %(data.mean()))
-    print("Largest Body Slice Area = %d" %(data.max()))
-    print("Smallest Body Slice Area = %d" %(data.min()))
+    real_Average = data.mean()
+    print("Average Body Number per Slice = %d" %(data.mean()))
+    print("Largest Body Number per Slice = %d" %(data.max()))
+    print("Smallest Body Number per Slice = %d" %(data.min()))
+    real_stdDev = data.std()
     print("Standard Deviation of data set = %d" %(data.std()))
 
     # Outputting the real body area statistics to a csv file
@@ -256,10 +258,18 @@ def findAverage_size(real, sim, directory):
             stdDev = data.std()
             results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns_sim)
             multi_results = pd.concat([multi_results, results], ignore_index= True)
-    print("\nHere are the statistics for your simulated data:")
-    print(multi_results)
+   
+    #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
+    # then finding a best fit mu and sigma from the mean and standard deviation of the real data
+    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev)
+    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+    multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
+
+    print("\nHere are the statistics for your simulated data.")
+    print("\nThe first line is the mu and sigma that provide the best fit to the average and standard deviation of your real data:")
+    print(multi_results_full)
     with open(os.path.join(directory, 'sim_body_size_statistics.csv'), 'w') as f:  
-        multi_results.to_csv(f, index = False) 
+        multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body area statistics to 'sim_body_size_statistics.csv' in the same directory as your original real body data")
 
 
@@ -268,9 +278,11 @@ def findAverage_num(real, sim, directory):
     # Summarizes the real data from the real slices
     print ("\nHere are the statistics for your real data:") 
     print(f"You have slices from {len(data)} images.")
+    real_Average = data.mean()
     print("Average Body Number per Slice = %d" %(data.mean()))
     print("Largest Body Number per Slice = %d" %(data.max()))
     print("Smallest Body Number per Slice = %d" %(data.min()))
+    real_stdDev = data.std()
     print("Standard Deviation of data set = %d" %(data.std()))
 
     # Outputting the real body number statistics to a csv file
@@ -305,12 +317,19 @@ def findAverage_num(real, sim, directory):
                         stdDev = data.std()
                         results = pd.DataFrame([[size_mu, size_sigma, number_mu, number_sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
                         multi_results = pd.concat([multi_results, results], ignore_index= True)
+    
+    #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
+    # then finding a best fit mu and sigma from the mean and standard deviation of the real data
+    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev)
+    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+    multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
+    
     print("\nHere are the statistics for your simulated data:")
-    print(multi_results)
+    print("\nThe first line is the mu and sigma that provide the best fit to the average and standard deviation of your real data:")
+    print(multi_results_full)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
-        multi_results.to_csv(f, index = False) 
+        multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body number statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
-
 
 def compare_distribs_area(real, sim):
     sim = sim['area_scaled']
@@ -497,6 +516,41 @@ def predict(results):
     y_predicted = poly_reg_model.predict(s_poly)
     return y_predicted, poly_reg_model
 
+def linear_regression(multi_results, real_Average, real_stdDev):  # Coded with help from CoPilot
+    # Creating the multi-fit linear model
+    X = multi_results[['mu', 'sigma']]
+    Y = multi_results[['average', 'stdDev']]
+    model = LinearRegression()
+    model.fit(X, Y)
+    
+    # Extract coefficients
+    intercepts = model.intercept_
+    coefs = model.coef_
+
+    # Target values
+    average_target = real_Average
+    sd_target = real_stdDev
+
+   # Build system of two equations 
+    print(f'real average {average_target}')
+    print(f'real SD {sd_target}')
+    print(f'intercept average {intercepts[0]}')
+    print(f'intercept SD {intercepts[1]}')
+    A = coefs
+
+    b = np.array([
+        average_target - intercepts[0],
+        sd_target - intercepts[1]
+    ])
+
+    # Solve for [mu, sigma]
+    mu, sigma = np.linalg.solve(A, b)
+
+    # Find the estimated mu and sigma this corresponds to (to check)
+    calc_average = intercepts[0] + coefs[0,0]*mu + coefs[0,1]*sigma
+    calc_stdDev = intercepts[1] + coefs[1,0]*mu + coefs [1,1]*sigma 
+
+    return mu, sigma, calc_average, calc_stdDev
 
 
 def make_graph (real, sim, directory, programMode):
