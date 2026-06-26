@@ -301,31 +301,35 @@ def findAverage_num(real, sim, directory):
     number_sigmas = sorted(sim_slices['number_sigma'].value_counts().index.tolist())
     columns = ['size_mu', 'size_sigma', 'number_mu', 'number_sigma', 'length', 'average', 'largest', 'smallest', 'stdDev']
     multi_results = pd.DataFrame(columns = columns)
+    df_best_fit_all = pd.DataFrame(columns = columns)
     for size_mu in size_mus: 
-            split_data = sim_slices.loc[sim_slices['size_mu'] == size_mu]  #splitting up the data
-            for size_sigma in size_sigmas:
-                split_data2 = split_data.loc[split_data['size_sigma'] == size_sigma]
-                for number_mu in number_mus:
-                    split_data3 = split_data2.loc[split_data2['number_mu'] == number_mu]
-                    for number_sigma in number_sigmas:
-                        split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
-                        data = split_slices['number']
-                        Length = len(data)
-                        Average = data.mean()
-                        Largest = data.max()
-                        Smallest = data.min()
-                        stdDev = data.std()
-                        results = pd.DataFrame([[size_mu, size_sigma, number_mu, number_sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
-                        multi_results = pd.concat([multi_results, results], ignore_index= True)
+        split_data = sim_slices.loc[sim_slices['size_mu'] == size_mu]  #splitting up the data
+        for size_sigma in size_sigmas:
+            split_data2 = split_data.loc[split_data['size_sigma'] == size_sigma]
+            for number_mu in number_mus:
+                split_data3 = split_data2.loc[split_data2['number_mu'] == number_mu]
+                for number_sigma in number_sigmas:
+                    split_slices = split_data3.loc[split_data3['number_sigma'] == number_sigma]
+                    data = split_slices['number']
+                    Length = len(data)
+                    Average = data.mean()
+                    Largest = data.max()
+                    Smallest = data.min()
+                    stdDev = data.std()
+                    results = pd.DataFrame([[size_mu, size_sigma, number_mu, number_sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns)
+                    multi_results = pd.concat([multi_results, results], ignore_index= True)
+            if len(multi_results) > 0:
+                #Doing a linear regression for number mu and number sigma vs mean and standard deviation for the simulated data, for each combination of size mu and sigma
+                # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
+                fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
+                fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
+                best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev)
+                df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
     
-    #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
-    # then finding a best fit mu and sigma from the mean and standard deviation of the real data
-    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev)
-    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-    multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
-    
+    multi_results_full = pd.concat([df_best_fit_all, multi_results], ignore_index=True)  # add all of the best fits to the results dataframe
     print("\nHere are the statistics for your simulated data:")
-    print("\nThe first line is the mu and sigma that provide the best fit to the average and standard deviation of your real data:")
+    print("\nThe first line is the nubmer mu and number sigma that provide the best fit to the average and standard deviation of your real data:")
     print(multi_results_full)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
@@ -532,10 +536,6 @@ def linear_regression(multi_results, real_Average, real_stdDev):  # Coded with h
     sd_target = real_stdDev
 
    # Build system of two equations 
-    print(f'real average {average_target}')
-    print(f'real SD {sd_target}')
-    print(f'intercept average {intercepts[0]}')
-    print(f'intercept SD {intercepts[1]}')
     A = coefs
 
     b = np.array([
