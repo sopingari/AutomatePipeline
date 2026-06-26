@@ -10,6 +10,9 @@ from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import os as os
 import seaborn as sns
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from numpy.linalg import solve
 
 def main(fileSelectOpt = True, manual = True):
     if manual == True:  
@@ -75,13 +78,9 @@ def main(fileSelectOpt = True, manual = True):
                     print("[2]: Estimate body number from number of bodies per image")
                     programMode = input() 
 
-                print("Here are your Kolomogorov-Smirnov results:")
-                print(KS_results)
-                print(KS_results.dtypes)
                 KS_heatmap(KS_results,  directory = directory)
-                print("KS results and heatmap saved to the same directory as your original real body data")
-                print("Here are your Epps-Singleton results:")
-                print(ES_results)
+                print("Kolmogorov-Smirnov results and heatmap saved to the same directory as your original real body data")
+
                 ES_heatmap(ES_results, directory = directory)
                 print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
 
@@ -158,7 +157,6 @@ def loadDataNumber(fileSelectOpt):
             real_slices.columns = ['number']
         real_body_number = real_slices['number'].astype(int) 
         print(real_body_number.head())  
-        #print(real_slices.dtypes)
         print(real_body_number.value_counts())  #For verification
         print("Which simulated data to you want to compare to your real data?")
         print(">>Please select an option: ")    
@@ -280,7 +278,7 @@ def findAverage_num(real, sim, directory):
     real_results = pd.DataFrame([[len(data), data.mean(), data.max(), data.min(), data.std()]], columns = columns_real)
     with open(os.path.join(directory, 'real_body_number_statistics.csv'), 'w') as f:  
         real_results.to_csv(f, index = False) 
-    print("Saved real body area statistics to 'real_body_number_statistics.csv' in the same directory as your original real body data")
+    print("Saved real body number statistics to 'real_body_number_statistics.csv' in the same directory as your original real body data")
 
     # Summarizes the simulated data from the simulated slices
     sim_slices = sim
@@ -332,11 +330,9 @@ def multi_compare_area(real, sim, directory):
     mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
     mu_list = sorted(mus) 
     print(mu_list)
-    #print(type(mu_list))
     sigmas = sim['size_sigma'].value_counts().index.tolist()      # Extracts all of the different values of sigma
     sigma_list = sorted(sigmas)
     print(sigma_list)
-    #print(type(sigma_list))
     multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
     multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
     for mu in mu_list:
@@ -350,14 +346,26 @@ def multi_compare_area(real, sim, directory):
             print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma} is {es.statistic:.9f}, and the p-value is {es.pvalue:.9E}. \n")
             es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
+    
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
     print (sorted_ks_results)
-    print (sorted_ks_results.dtypes)
-    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')     
+    sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
+    sorted_results.columns = ["mu", "sigma", "statistic"]
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
+    full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
     with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
-        sorted_ks_results.to_csv(f, index = False) 
+        full_ks_results.to_csv(f, index = False) 
+
+    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
+    print (sorted_es_results)
+    sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
+    sorted_results.columns = ["mu", "sigma", "statistic"]
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
+    full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
     with open(os.path.join(directory, 'es_results_area.csv'), 'w') as f:    
-        sorted_es_results.to_csv(f, index = False)
+        full_es_results.to_csv(f, index = False)
 
     return sorted_ks_results, sorted_es_results 
 
@@ -395,22 +403,31 @@ def multi_compare_number(real, sim, directory):
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
 
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
+    print (sorted_ks_results)
+    sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
+    sorted_results.columns = ["mu", "sigma", "statistic"]
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
+    full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
     with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
-        sorted_ks_results.to_csv(f, index = False)
+        full_ks_results.to_csv(f, index = False)
+
 
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')
+    print (sorted_es_results)
+    sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
+    sorted_results.columns = ["mu", "sigma", "statistic"]
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
+    full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
     with open(os.path.join(directory, 'es_results_number.csv'), 'w') as f:    
-            sorted_es_results.to_csv(f, index = False)
+            full_es_results.to_csv(f, index = False)
 
     return sorted_ks_results, sorted_es_results
 
 def KS_heatmap(ks_results, directory):
     ks_pivot = ks_results.pivot(index = 'sigma', columns = 'mu', values = 'ks')
-    print(ks_pivot)
-    print(ks_pivot.dtypes)
     ks_pivot_nums = ks_pivot.astype(float)  
-    print(ks_pivot_nums)
-    print(ks_pivot_nums.dtypes)
     plt.figure(figsize = (10,8))
     sns.heatmap(ks_pivot_nums, annot = True, cmap = 'viridis')
     plt.title('KS statistic for different mu and sigma values')
@@ -421,11 +438,7 @@ def KS_heatmap(ks_results, directory):
 
 def ES_heatmap(es_results, directory): 
     es_pivot = es_results.pivot(index = 'sigma', columns = 'mu', values = 'es_statistic')
-    print(es_pivot)
-    print(es_pivot.dtypes)
     es_pivot_nums = es_pivot.astype(float)
-    print(es_pivot_nums)
-    print(es_pivot_nums.dtypes)
     plt.figure(figsize = (10,8))
     sns.heatmap(es_pivot_nums, annot = True, cmap = 'viridis')
     plt.title('Epps-Singleton statistic for different mu and sigma values')
@@ -433,6 +446,58 @@ def ES_heatmap(es_results, directory):
     plt.ylabel('sigma values')
     plt.savefig(os.path.join(directory, f"ES_heatmap.png"))
     plt.show()
+
+#Find best fit values of mu and sigma that minimize the statistic
+def best_fit(results):    
+    y_predicted, poly_reg_model = predict(results)
+
+    # This code from Gemini 2.5 (via google Colab)
+    # Get the coefficients from the trained linear regression model
+    coef = poly_reg_model.coef_
+
+    A = np.array([
+        [2 * coef[2], coef[3]],
+        [coef[3], 2 * coef[4]]
+    ])
+
+    B = np.array([
+        -coef[0],
+        -coef[1]
+    ])
+
+    # Solve the system for mu and sigma
+    try:
+        optimal_mu_sigma = solve(A, B)
+        interpolated_mu_min = optimal_mu_sigma[0]
+        interpolated_sigma_min = optimal_mu_sigma[1]
+
+        # Now, calculate the predicted statistic at these interpolated mu and sigma values
+        # Need to transform these values into polynomial features for prediction
+        pr = PolynomialFeatures(degree = 2, include_bias = False)
+        # Create a 2D array for a single sample: [[interpolated_mu_min, interpolated_sigma_min]]
+        optimal_features = pr.fit_transform([[interpolated_mu_min, interpolated_sigma_min]])
+
+        interpolated_min_statistic = poly_reg_model.predict(optimal_features)[0]
+
+        print(f"Interpolated mu for minimum statistic: {interpolated_mu_min:.4f}")
+        print(f"Interpolated sigma for minimum statistic: {interpolated_sigma_min:.4f}")
+        print(f"Interpolated minimum statistic: {interpolated_min_statistic:.6f}")
+
+    except np.linalg.LinAlgError:
+        print("Could not solve the system of equations. The matrix might be singular.")
+    
+    return interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min
+    
+#Order 2 polynomial model, predicting statistic from mu and sigma
+def predict(results):
+    pr = PolynomialFeatures(degree = 2, include_bias = False)
+    s_poly = pr.fit_transform(results[['mu', 'sigma']])
+    poly_reg_model = LinearRegression()
+    poly_reg_model.fit(s_poly, results['statistic'])
+    y_predicted = poly_reg_model.predict(s_poly)
+    return y_predicted, poly_reg_model
+
+
 
 def make_graph (real, sim, directory, programMode):
     print(">>Please select an option: ")
@@ -910,11 +975,8 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
         width=800,
         font_size=12,
         plot_bgcolor="white",
-        #xaxis_tickvals=[-12.5, 0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100, 112.5],
-        #xaxis_ticktext=["", "0", "", "25", "", "50", "", "75", "", "100", ""],
         xaxis_gridcolor="rgba(0, 0, 0, 0.1)",
         yaxis_gridcolor="rgba(0, 0, 0, 0.1)",
-        #yaxis_title=dict(text="Assigned Probability (%)", font_size=13),
         showlegend=False,
     )
 
@@ -971,9 +1033,6 @@ def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None
                 headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
     print("headers:", headers)
     print("data:", data)
-    headersdf = pd.DataFrame({'headers': headers})
-    headersdf.to_csv(os.path.join(directory, f"headers_ridgeplot_number.csv"), index = False)  #Saving the headers to a csv file for later use
-    data.to_csv(os.path.join(directory, f"data_ridgeplot_number.csv"), index = False)  #Saving the data to a csv file for later use
     print ("max value for x-axis:", max_graph)
     samples=data.to_numpy().T
     print("samples:", samples)
@@ -994,15 +1053,12 @@ def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None
         width=800,
         font_size=12,
         plot_bgcolor="white",
-        #xaxis_tickvals=[-12.5, 0, 12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100, 112.5],
-        #xaxis_ticktext=["", "0", "", "25", "", "50", "", "75", "", "100", ""],
         xaxis_gridcolor="rgba(0, 0, 0, 0.1)",
         yaxis_gridcolor="rgba(0, 0, 0, 0.1)",
-        #yaxis_title=dict(text="Assigned Probability (%)", font_size=13),
         showlegend=False,
     )
 
     fig.show()
-    fig.write_image(os.path.join(directory, f"Ridgeline_plot_area.png"))
+    fig.write_image(os.path.join(directory, f"Ridgeline_plot_number.png"))
 
 main()
