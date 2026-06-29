@@ -13,6 +13,7 @@ import seaborn as sns
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
 from numpy.linalg import solve
+from mpl_toolkits.mplot3d import Axes3D  
 
 def main(fileSelectOpt = True, manual = True):
     if manual == True:  
@@ -45,10 +46,10 @@ def main(fileSelectOpt = True, manual = True):
             if(userSelection == "2"):
                 if programMode == "1":
                     print(sim_slices.head())
-                    try:
-                        findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
+                    #except:
+                    loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
                     #try:
@@ -261,7 +262,7 @@ def findAverage_size(real, sim, directory):
    
     #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
     # then finding a best fit mu and sigma from the mean and standard deviation of the real data
-    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev)
+    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
     df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
     multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
 
@@ -323,7 +324,7 @@ def findAverage_num(real, sim, directory):
                 # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
                 fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
                 fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
-                best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev)
+                best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
                 df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
                 df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
     
@@ -520,7 +521,7 @@ def predict(results):
     y_predicted = poly_reg_model.predict(s_poly)
     return y_predicted, poly_reg_model
 
-def linear_regression(multi_results, real_Average, real_stdDev):  # Coded with help from CoPilot
+def linear_regression(multi_results, real_Average, real_stdDev, directory):  # Coded with help from CoPilot
     # Creating the multi-fit linear model
     X = multi_results[['mu', 'sigma']]
     Y = multi_results[['average', 'stdDev']]
@@ -550,8 +551,174 @@ def linear_regression(multi_results, real_Average, real_stdDev):  # Coded with h
     calc_average = intercepts[0] + coefs[0,0]*mu + coefs[0,1]*sigma
     calc_stdDev = intercepts[1] + coefs[1,0]*mu + coefs [1,1]*sigma 
 
+    graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_average, calc_stdDev, directory)
+
     return mu, sigma, calc_average, calc_stdDev
 
+def graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_average, calc_stdDev, directory):
+    df = multi_results.astype(float)
+    print(df)
+    print(df.dtypes)
+    print ("intercepts are", intercepts)
+    print (intercepts.dtype)
+    print("coefficients are", coefs)
+    print (coefs.dtype)
+    
+   
+    # Create grid for regression planes
+    mu_min, mu_max = df["mu"].min(), df["mu"].max()
+    sigma_min, sigma_max = df["sigma"].min(), df["sigma"].max()
+
+    mu_grid, sigma_grid = np.meshgrid(
+        np.linspace(mu_min, mu_max, 30),
+        np.linspace(sigma_min, sigma_max, 30)
+    )
+
+    # Plane equation:
+    # z = b0 + b1*mu + b2*sigma
+    mean_plane = (
+       intercepts[0]
+        + coefs[0,0] * mu_grid
+        + coefs[0,1] * sigma_grid
+    )
+
+    stdDev_plane = (
+       intercepts[1]
+        + coefs[1,0] * mu_grid
+        + coefs[1,1] * sigma_grid
+    )
+
+
+    # Plot
+    fig = plt.figure(figsize=(16, 7))
+
+    # --- Plot 1: mean ---
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+
+    ax1.scatter(
+        df["mu"],
+        df["sigma"],
+        df["average"],
+        alpha=0.7,
+        label="Simulated data"
+    )
+
+    ax1.plot_surface(
+        mu_grid,
+        sigma_grid,
+        mean_plane,
+        alpha=0.35,
+        edgecolor="none"
+    )
+
+
+    # Highlighted point
+    ax1.scatter(
+        mu,
+        sigma,
+        calc_average,
+        color="red",
+        s=100,
+        marker="o",
+        edgecolor="black",
+        label="Best Fit"
+    )
+
+
+    ax1.set_title("Regression Plane for mean")
+    ax1.set_xlabel("mu")
+    ax1.set_ylabel("sigma")
+    ax1.set_zlabel("mean")
+
+    mean_eq = (
+        f"mean = {intercepts[0]:.3f} "
+        f"+ {coefs[0,0]:.3f}·mu "
+        f"+ {coefs[0,1]:.3f}·sigma"
+    )
+
+    best_fit_mean_desc = (f"best fit mu = {mu:.3f}; best fit sigma = {sigma:.4f}; best fit mean = {calc_average:.0f}")
+
+    ax1.text2D(
+        0.05,
+        0.95,
+        mean_eq,
+        transform=ax1.transAxes
+    )
+
+    ax1.text2D(
+        0.05,
+        0.90,
+        best_fit_mean_desc,
+        transform=ax1.transAxes
+    )
+
+    # --- Plot 2: stdDev ---
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
+
+    ax2.scatter(
+        df["mu"],
+        df["sigma"],
+        df["stdDev"],
+        alpha=0.7,
+        label="Simulated data"
+    )
+
+    ax2.plot_surface(
+        mu_grid,
+        sigma_grid,
+        stdDev_plane,
+        alpha=0.35,
+        edgecolor="none"
+    )
+
+
+    # Highlighted point
+    ax2.scatter(
+        mu,
+        sigma,
+        calc_stdDev,
+        color="red",
+        s=100,
+        marker="o",
+        edgecolor="black",
+        label="Best Fit"
+    )
+
+
+    ax2.set_title("Regression Plane for stdDev")
+    ax2.set_xlabel("mu")
+    ax2.set_ylabel("sigma")
+    ax2.set_zlabel("stdDev")
+
+    stdDev_eq = (
+        f"stdDev = {intercepts[1]:.3f} "
+        f"+ {coefs[1,0]:.3f}·mu "
+        f"+ {coefs[1,1]:.3f}·sigma"
+    )
+
+    best_fit_stdDev_desc = (f"best fit mu = {mu:.3f}; best fit sigma = {sigma:.4f}; best fit stdDev = {calc_stdDev:.0f}")
+
+    ax2.text2D(
+        0.05,
+        0.95,
+        stdDev_eq,
+        transform=ax2.transAxes
+    )
+
+    ax2.text2D(
+        0.05,
+        0.90,
+        best_fit_stdDev_desc,
+        transform=ax2.transAxes
+    )
+
+    # Match viewing angles
+    ax1.view_init(elev=25, azim=135)
+    ax2.view_init(elev=25, azim=135)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(directory, f"Linear Regression plot.png"))
+    plt.show()
 
 def make_graph (real, sim, directory, programMode):
     print(">>Please select an option: ")
