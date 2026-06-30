@@ -46,16 +46,16 @@ def main(fileSelectOpt = True, manual = True):
             if(userSelection == "2"):
                 if programMode == "1":
                     print(sim_slices.head())
-                    #try:
-                    findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
-                    #except:
-                    loadDataMessage()
+                    try:
+                        findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                        loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
-                    #try:
-                    findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
-                    #except:
-                        #loadDataMessage()
+                    try:
+                        findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                        loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -64,26 +64,20 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "3"):
                 if programMode == "1":
-                    try:
-                        KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
+                    #except:
+                        #loadDataMessage()
                 elif programMode == "2":
-                    try:
-                        KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
+                    #except:
+                        #loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
                     print("[2]: Estimate body number from number of bodies per image")
                     programMode = input() 
-
-                KS_heatmap(KS_results,  directory = directory)
-                print("Kolmogorov-Smirnov results and heatmap saved to the same directory as your original real body data")
-
-                ES_heatmap(ES_results, directory = directory)
-                print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
 
             elif(userSelection == "4"):
                 make_graph(real = real_slices, sim = sim_slices, directory = directory, programMode = programMode)
@@ -371,25 +365,39 @@ def multi_compare_area(real, sim, directory):
             es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
     
+    # Sorting the KS results by ks statistic and making a heatmap
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
     print (sorted_ks_results)
+    KS_heatmap(sorted_ks_results,  directory = directory)
+    
+    # Estimating the mu and sigma that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "KS")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
     full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
+    
+    #Saving the KS results 
     with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
         full_ks_results.to_csv(f, index = False) 
+    print("Kolmogorov-Smirnov results and heatmap saved to the same directory as your original real body data")
 
+    # Sorting the ES results by ES statistic and making a heatmap
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
+    ES_heatmap(sorted_es_results, directory = directory)    
+    
+    # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "ES")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
     full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
+
+    #Saving the ES results
     with open(os.path.join(directory, 'es_results_area.csv'), 'w') as f:    
         full_es_results.to_csv(f, index = False)
+    print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
 
     return sorted_ks_results, sorted_es_results 
 
@@ -430,7 +438,7 @@ def multi_compare_number(real, sim, directory):
     print (sorted_ks_results)
     sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "KS")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
     full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
     with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
@@ -441,7 +449,7 @@ def multi_compare_number(real, sim, directory):
     print (sorted_es_results)
     sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results)
+    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "ES")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
     full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
     with open(os.path.join(directory, 'es_results_number.csv'), 'w') as f:    
@@ -472,12 +480,13 @@ def ES_heatmap(es_results, directory):
     plt.show()
 
 #Find best fit values of mu and sigma that minimize the statistic
-def best_fit(results):    
+def best_fit(results, directory, stat_name):
     y_predicted, poly_reg_model = predict(results)
 
     # This code from Gemini 2.5 (via google Colab)
     # Get the coefficients from the trained linear regression model
     coef = poly_reg_model.coef_
+    intercept = poly_reg_model.intercept_
 
     A = np.array([
         [2 * coef[2], coef[3]],
@@ -510,6 +519,10 @@ def best_fit(results):
     except np.linalg.LinAlgError:
         print("Could not solve the system of equations. The matrix might be singular.")
     
+    print("coeficients of model", coef)
+    print ("intercept", intercept)
+    #print("predicted y values", y_predicted)
+    graph_best_fit(results, poly_reg_model, y_predicted, interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min, directory, stat_name)
     return interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min
     
 #Order 2 polynomial model, predicting statistic from mu and sigma
@@ -555,16 +568,10 @@ def linear_regression(multi_results, real_Average, real_stdDev, directory):  # C
 
     return mu, sigma, calc_average, calc_stdDev
 
+
 def graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_average, calc_stdDev, directory):
     df = multi_results.astype(float)
-    print(df)
-    print(df.dtypes)
-    print ("intercepts are", intercepts)
-    print (intercepts.dtype)
-    print("coefficients are", coefs)
-    print (coefs.dtype)
-    
-   
+     
     # Create grid for regression planes
     mu_min, mu_max = df["mu"].min(), df["mu"].max()
     sigma_min, sigma_max = df["sigma"].min(), df["sigma"].max()
@@ -612,7 +619,7 @@ def graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_a
     )
 
 
-    # Highlighted point
+    # Highlighted point (best fit to real data)
     ax1.scatter(
         mu,
         sigma,
@@ -719,6 +726,87 @@ def graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_a
     plt.tight_layout()
     plt.savefig(os.path.join(directory, f"Linear Regression plot.png"))
     plt.show()
+
+def graph_best_fit (results, poly_reg_model, y_predicted, interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min, directory, stat_name):
+    df = results.astype(float)
+
+    # Create grid for regression curves
+    mu_min, mu_max = df["mu"].min(), df["mu"].max()
+    sigma_min, sigma_max = df["sigma"].min(), df["sigma"].max()
+
+    mu_grid, sigma_grid = np.meshgrid(
+        np.linspace(mu_min, mu_max, 30),
+        np.linspace(sigma_min, sigma_max, 30)
+    )
+
+    # Curve equation    
+    #z = b0 + b1*mu +b2*sigma + b3*mu**2 + b4*mu*sigma + b5*sigma^2
+    intercept = poly_reg_model.intercept_
+    coef = poly_reg_model.coef_
+    statistic_curve = (
+        intercept 
+        + coef[0]*mu_grid
+        + coef[1]*sigma_grid
+        + coef[2]*mu_grid**2
+        + coef[3]*sigma_grid*mu_grid   
+        + coef[4]*sigma_grid**2
+    )
+
+    # Plot
+    fig = plt.figure(figsize=(16, 16))
+    ax1 = fig.add_subplot(1, 1, 1, projection="3d")
+
+    ax1.scatter(
+    df["mu"],
+    df["sigma"],
+    df["statistic"],
+    alpha=0.7,
+    label="Simulated data"
+    )
+    
+    ax1.plot_surface(
+    mu_grid,
+    sigma_grid,
+    statistic_curve,
+    alpha=0.35,
+    edgecolor="none"
+    )
+
+    # Highlighted point (best fit to real data)
+    ax1.scatter(
+    interpolated_mu_min,
+    interpolated_sigma_min,
+    interpolated_min_statistic,
+    color="red",
+    s=100,
+    marker="o",
+    edgecolor="black",
+    label=f"Best Fit for {stat_name} statistic"
+    )
+
+    curve_eq = (f"statistic = {intercept:.3f} + {coef[0]:.4f}*mu + {coef[1]:.4f}*sigma + {coef[2]:.4f}*mu**2 + {coef[3]:.4f}*mu*sigma + {coef[4]:.4f}sigma**2")  
+
+    best_fit_desc = (f"best fit mu = {interpolated_mu_min:.3f}; best fit sigma = {interpolated_sigma_min:.4f}; statistic of best fit = {interpolated_min_statistic:.5f}")
+
+    ax1.text2D(
+        0.05,
+        0.95,
+        curve_eq,
+        transform=ax1.transAxes
+    )
+
+    ax1.text2D(
+        0.05,
+        0.90,
+        best_fit_desc,
+        transform=ax1.transAxes
+    )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(directory, f"polynomial regression plot for {stat_name}.png"))
+    plt.show()
+
+
 
 def make_graph (real, sim, directory, programMode):
     print(">>Please select an option: ")
