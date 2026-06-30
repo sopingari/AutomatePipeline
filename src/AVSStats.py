@@ -434,26 +434,39 @@ def multi_compare_number(real, sim, directory):
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
 
+    #Sorting the KS results by KS statistic and making and saving a heatmap
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
     print (sorted_ks_results)
+    KS_heatmap(sorted_ks_results,  directory = directory)
+
+    #Estimating the mu and sigma that would minimize the KS statistic
     sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
     interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "KS")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
+    
+    #Saving the KS results
     full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
     with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
         full_ks_results.to_csv(f, index = False)
+    print("Kolmogorov-Smirnov results and heatmap saved to the same directory as your original real body data")
 
-
-    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic')
+    # Sorting the ES results by ES statistic and making a heatmap
+    sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
+    ES_heatmap(sorted_es_results, directory = directory)  
+
+    # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
     interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "ES")
     min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
+    
+    #Saving the ES results
     full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
     with open(os.path.join(directory, 'es_results_number.csv'), 'w') as f:    
             full_es_results.to_csv(f, index = False)
+    print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
 
     return sorted_ks_results, sorted_es_results
 
