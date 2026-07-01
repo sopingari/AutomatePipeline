@@ -24,8 +24,8 @@ def main(fileSelectOpt = True, manual = True):
         programMode = input()
         for _ in range(100):     #So that the user can run multiple tests
             print(">>Please select an option: ")
-            print("[1]: Load your data")  ### Works for both size and number - verified
-            print("[2]: Calculate statistics on your data")   #### Works for both size and number - verified
+            print("[1]: Load your data") 
+            print("[2]: Calculate statistics on your data")   
             print("[3]: Perform a KS (Kolmogorov-Smirnov) test and an ES (Epps-Singleton) test")  
             print("[4]: Generate a single graph to visualize the differences between your real and simulated data")
             print("[5]: Generate a set of graphs to visualize the differences between your real and simulated data for different mu and sigma combinations ")  
@@ -46,16 +46,16 @@ def main(fileSelectOpt = True, manual = True):
             if(userSelection == "2"):
                 if programMode == "1":
                     print(sim_slices.head())
-                    try:
-                        findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
+                    # except:
+                        # loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
-                    try:
-                        findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    # try:
+                    findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
+                    # except:
+                        # loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -64,15 +64,16 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "3"):
                 if programMode == "1":
-                    #try:
-                    KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
-                    #except:
-                        #loadDataMessage()
+                    try:
+                        KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                        loadDataMessage()
                 elif programMode == "2":
-                    #try:
-                    KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
-                    #except:
-                        #loadDataMessage()
+                    try:
+                        KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                        loadDataMessage()
+
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -256,9 +257,13 @@ def findAverage_size(real, sim, directory):
    
     #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
     # then finding a best fit mu and sigma from the mean and standard deviation of the real data
-    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
-    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-    multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
+    try:
+        best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
+        df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
+    except:
+        print("No best fit mu and sigma could be found.")
+        multi_results_full = multi_results
 
     print("\nHere are the statistics for your simulated data.")
     print("\nThe first line is the mu and sigma that provide the best fit to the average and standard deviation of your real data:")
@@ -318,10 +323,13 @@ def findAverage_num(real, sim, directory):
                 # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
                 fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
                 fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
-                best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
-                df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
-    
+                try:
+                    best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
+                    df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                    df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
+                except:
+                    print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
+
     multi_results_full = pd.concat([df_best_fit_all, multi_results], ignore_index=True)  # add all of the best fits to the results dataframe
     print("\nHere are the statistics for your simulated data:")
     print("\nThe first line is the nubmer mu and number sigma that provide the best fit to the average and standard deviation of your real data:")
@@ -571,7 +579,11 @@ def linear_regression(multi_results, real_Average, real_stdDev, directory):  # C
     ])
 
     # Solve for [mu, sigma]
-    mu, sigma = np.linalg.solve(A, b)
+    try:
+        mu, sigma = np.linalg.solve(A, b)
+
+    except np.linalg.LinAlgError:
+        print("Could not solve the system of equations. The matrix might be singular.")
 
     # Find the estimated mu and sigma this corresponds to (to check)
     calc_average = intercepts[0] + coefs[0,0]*mu + coefs[0,1]*sigma
