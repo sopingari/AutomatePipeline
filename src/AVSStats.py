@@ -223,9 +223,9 @@ def findAverage_size(real, sim, directory):
     print ("\nHere are the statistics for your real data:") 
     print(f"You have slices from {len(data)} bodies.")
     real_Average = data.mean()
-    print("Average Body Number per Slice = %d" %(data.mean()))
-    print("Largest Body Number per Slice = %d" %(data.max()))
-    print("Smallest Body Number per Slice = %d" %(data.min()))
+    print("Average Body Size = %d" %(data.mean()))
+    print("Largest Body Size = %d" %(data.max()))
+    print("Smallest Body Size = %d" %(data.min()))
     real_stdDev = data.std()
     print("Standard Deviation of data set = %d" %(data.std()))
 
@@ -257,21 +257,17 @@ def findAverage_size(real, sim, directory):
    
     #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
     # then finding a best fit mu and sigma from the mean and standard deviation of the real data
-    try:
-        best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
-        df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
-    except:
-        print("No best fit mu and sigma could be found.")
-        multi_results_full = multi_results
-
-    print("\nHere are the statistics for your simulated data.")
-    print("\nThe first line is the mu and sigma that provide the best fit to the average and standard deviation of your real data:")
-    print(multi_results_full)
+    # try:
+    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
+    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+    multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+    # except:
+    # print("No best fit mu and sigma could be found.")
+    # multi_results_full = multi_results
+    
     with open(os.path.join(directory, 'sim_body_size_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body area statistics to 'sim_body_size_statistics.csv' in the same directory as your original real body data")
-
 
 def findAverage_num(real, sim, directory):
     data = real   
@@ -321,22 +317,47 @@ def findAverage_num(real, sim, directory):
             if len(multi_results) > 0:
                 #Doing a linear regression for number mu and number sigma vs mean and standard deviation for the simulated data, for each combination of size mu and sigma
                 # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
-                fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
-                fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
+                df_best_fit = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
+                df_best_fit.columns = ['mu', 'sigma', 'average', 'stdDev']
                 try:
-                    best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
+                    best_mu, best_sigma, best_mean, best_SD = linear_regression(df_best_fit, real_Average, real_stdDev, directory)
                     df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
+                    multi_results_full =check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
                 except:
                     print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
 
-    multi_results_full = pd.concat([df_best_fit_all, multi_results], ignore_index=True)  # add all of the best fits to the results dataframe
-    print("\nHere are the statistics for your simulated data:")
-    print("\nThe first line is the nubmer mu and number sigma that provide the best fit to the average and standard deviation of your real data:")
-    print(multi_results_full)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body number statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
+
+def check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim):
+    # Check to make sure the mu and sigma values are within the range of the simulated data; otherwise give a message and throw out.
+    print("\nHere are the statistics for your simulated data.")
+    print(multi_results)
+    if best_mu >= sim['size_mu'].min() and best_mu <= sim['size_mu'].max() and best_sigma >= sim['size_sigma'].min() and best_sigma <= sim['size_sigma'].max():
+        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)   
+        print(f"The mu and sigma that provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
+    elif best_mu < sim['size_mu'].min(): 
+        print("The best fit mu is smaller than the smallest mu you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with smaller mu values.")
+        multi_results_full = multi_results
+    elif best_sigma < sim['size_sigma'].min():
+        print("The best fit sigma is smaller than the smallest sigma you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with smaller sigma values.")
+        multi_results_full = multi_results
+    elif best_sigma > sim['size_sigma'].max():
+        print("The best fit sigma is larger than the largest sigma you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with larger sigma values.")
+        multi_results_full = multi_results
+    elif best_mu > sim['size_mu'].max():
+        print("The best fit mu is larger than the largest mu you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with larger mu values.")
+        multi_results_full = multi_results
+    return multi_results_full
 
 def compare_distribs_area(real, sim):
     sim = sim['area_scaled']
