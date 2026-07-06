@@ -257,14 +257,25 @@ def findAverage_size(real, sim, directory):
    
     #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
     # then finding a best fit mu and sigma from the mean and standard deviation of the real data
-    # try:
-    best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
-    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-    multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
-    # except:
-    # print("No best fit mu and sigma could be found.")
-    # multi_results_full = multi_results
-    
+    if len(mus) >= 2 and len(sigmas) >= 2:
+        try:
+            best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
+            df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+            multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+        except:
+            print("No best fit mu and sigma could be found.")
+            multi_results_full = multi_results
+    elif len(sigmas) == 1:
+        best_mu, best_mean = mu_linear_regression(multi_results, real_Average, directory)
+        best_sigma, best_SD = np.nan, np.nan
+        df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+        multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+    elif len(mus) == 1: 
+        best_sigma, best_SD = sigma_linear_regression(multi_results, real_stdDev, directory)
+        best_mu, best_mean = np.nan, np.nan
+        df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+        multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+
     with open(os.path.join(directory, 'sim_body_size_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body area statistics to 'sim_body_size_statistics.csv' in the same directory as your original real body data")
@@ -317,46 +328,92 @@ def findAverage_num(real, sim, directory):
             if len(multi_results) > 0:
                 #Doing a linear regression for number mu and number sigma vs mean and standard deviation for the simulated data, for each combination of size mu and sigma
                 # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
-                df_best_fit = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
-                df_best_fit.columns = ['mu', 'sigma', 'average', 'stdDev']
-                try:
-                    best_mu, best_sigma, best_mean, best_SD = linear_regression(df_best_fit, real_Average, real_stdDev, directory)
-                    df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    multi_results_full =check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
-                except:
-                    print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
+                mus = multi_results['number_mu'].unique()
+                sigmas = multi_results['number_sigma'].unique()
+                if len(mus) >= 2 and len(sigmas) >= 2:
+                    fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
+                    fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
+                    try:
+                        best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
+                        df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                        include =check_in_range_number(fittable_results, best_mu, best_sigma)
+                    except:
+                        print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
+                elif len(sigmas) == 1:
+                    best_mu, best_mean = mu_linear_regression(fittable_results, real_Average, directory)
+                    best_sigma, best_SD = np.nan, np.nan
+                    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                    include = check_in_range_number(fittable_results, df_best_fit, best_mu, best_sigma, sim)
+                elif len(mus) == 1:
+                    best_sigma, best_SD = sigma_linear_regression(fittable_results, real_stdDev, directory)
+                    best_mu, best_mean = np.nan, np.nan
+                    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                    include = check_in_range_number(fittable_results, df_best_fit, best_mu, best_sigma, sim)
+            else: include = False
+            if include:
+                df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
 
+    print("Best fit parameters:")
+    print(df_best_fit_all)
+    print("Full results:")
+    print(multi_results)
+    
+    multi_results_full = pd.concat([df_best_fit_all, multi_results], ignore_index=True)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body number statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
+
+def check_in_range_number(fittable_results, best_mu, best_sigma):
+    # Checks if the best fit number mu and sigma are within the range of simulated values; if not, sets "include" to false so we can throw this data out.  
+    if best_mu < fittable_results["mu"].min():
+        print(f"The best fit mu, {best_mu}, is smaller than the smallest mu you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with smaller mu values.")
+        include = False
+    if best_sigma < fittable_results["sigma"].min():
+        print(f"The best fit sigma, {best_sigma}, is smaller than the smallest sigma you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with smaller sigma values.")
+        include = False
+    if best_mu > fittable_results["mu"].max():
+        print(f"The best fit mu, {best_mu}, is larger than the largest mu you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with larger mu values.")
+        include = False
+    if best_sigma > fittable_results["sigma"].max():
+        print(f"The best fit sigma, {best_sigma}, is larger than the largest sigma you tested.")
+        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
+        print("Consider generating more simulated data with larger sigma values.")
+        include = False
+    return include
 
 def check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim):
     # Check to make sure the mu and sigma values are within the range of the simulated data; otherwise give a message and throw out.
     print("\nHere are the statistics for your simulated data.")
     print(multi_results)
-    if best_mu >= sim['size_mu'].min() and best_mu <= sim['size_mu'].max() and best_sigma >= sim['size_sigma'].min() and best_sigma <= sim['size_sigma'].max():
-        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)   
-        print(f"The mu and sigma that provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
-    elif best_mu < sim['size_mu'].min(): 
-        print("The best fit mu is smaller than the smallest mu you tested.")
+    if best_mu < sim['size_mu'].min(): 
+        print(f"The best fit mu, {best_mu}, is smaller than the smallest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with smaller mu values.")
         multi_results_full = multi_results
     elif best_sigma < sim['size_sigma'].min():
-        print("The best fit sigma is smaller than the smallest sigma you tested.")
+        print(f"The best fit sigma, {best_sigma}, is smaller than the smallest sigma you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with smaller sigma values.")
         multi_results_full = multi_results
     elif best_sigma > sim['size_sigma'].max():
-        print("The best fit sigma is larger than the largest sigma you tested.")
+        print(f"The best fit sigma, {best_sigma}, is larger than the largest sigma you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger sigma values.")
         multi_results_full = multi_results
     elif best_mu > sim['size_mu'].max():
-        print("The best fit mu is larger than the largest mu you tested.")
+        print(f"The best fit mu, {best_mu}, is larger than the largest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger mu values.")
         multi_results_full = multi_results
+    else:  
+        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)   
+        print(f"The mu and sigma that provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
     return multi_results_full
 
 def compare_distribs_area(real, sim):
@@ -614,6 +671,135 @@ def linear_regression(multi_results, real_Average, real_stdDev, directory):  # C
 
     return mu, sigma, calc_average, calc_stdDev
 
+def mu_linear_regression(multi_results, real_Average, directory): 
+    # A simple linear model using only mu and fitting only to the mean values
+    X = multi_results[['mu']]
+    Y = multi_results[['average']]
+    model = LinearRegression()
+    model.fit(X, Y)
+    
+    # Extract coefficients
+    intercept = model.intercept_
+    coef = model.coef_
+
+    #Solve for best fit mu based on the real mean
+    mu = (real_Average - intercept) / coef[0] 
+    calc_average = intercept[0] + coef[0] * mu
+
+    graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average, directory)
+
+    return mu, calc_average
+
+def sigma_linear_regression(multi_results, real_stdDev, directory):
+    # A simple linear model using only sigma and fitting only to the standard deviation values
+    X = multi_results[['sigma']]
+    Y = multi_results[['stdDev']]
+    model = LinearRegression()
+    model.fit(X, Y)
+
+    # Extract coefficients
+    intercept = model.intercept_
+    coef = model.coef_
+
+    # Solve for best fit sigma based on the real standard deviation
+    sigma = (real_stdDev - intercept) / coef[0]
+    calc_stdDev = intercept[0] + coef[0] * sigma
+
+    graph_sigma_linear_regression(multi_results, intercept, coef, sigma, calc_stdDev, directory)
+
+    return sigma, calc_stdDev
+
+def graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average, directory):
+    df = multi_results.astype(float)
+
+# Scatterplot of the simulated data
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df["mu"], df["average"], color="blue", alpha=0.7)
+
+    # Plot the fitted line
+    x_line = np.linspace(df["mu"].min(), df["mu"].max(), 100)
+    y_line = intercept[0] + coef[0] * x_line
+
+    plt.plot(x_line, y_line, color="blue", linewidth=2)
+
+    # Add equation text to plot
+    equation = f"average = {intercept[0]:.3f} + {coef[0][0]:.3f} x mu"
+    plt.text(
+        0.05,
+        0.95,
+        equation,
+        transform=plt.gca().transAxes,
+        fontsize=11,
+        verticalalignment="top",
+        bbox=dict(facecolor="white", alpha=0.8)
+    )
+
+    # Single point to highlight
+    calc_average = intercept + coef[0] * mu
+
+    plt.scatter(
+        mu,
+        calc_average,
+        color="red",
+        s=100,
+        zorder=5,
+        label="Prediction"
+    )
+
+    plt.xlabel("mu")
+    plt.ylabel("average")
+    plt.title("Average vs Mu")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.savefig(os.path.join(directory, f"Linear Regression plot - Mu.png"))
+    plt.show()
+
+def graph_sigma_linear_regression(multi_results, intercept, coef, sigma, calc_stdDev, directory):
+    df = multi_results.astype(float)
+
+    # Scatterplot of the simulated data
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df["sigma"], df["stdDev"], color="blue", alpha=0.7)
+
+    # Plot the fitted line
+    x_line = np.linspace(df["sigma"].min(), df["sigma"].max(), 100)
+    y_line = intercept[0] + coef[0] * x_line
+
+    plt.plot(x_line, y_line, color="blue", linewidth=2)
+
+    # Add equation text to plot
+    equation = f"stdDev = {intercept[0]:.3f} + {coef[0][0]:.3f} x sigma"
+    plt.text(
+        0.05,
+        0.95,
+        equation,
+        transform=plt.gca().transAxes,
+        fontsize=11,
+        verticalalignment="top",
+        bbox=dict(facecolor="white", alpha=0.8)
+    )
+
+    # Single point to highlight
+    calc_stdDev = intercept[0] + coef[0][0] * sigma
+
+    plt.scatter(
+        sigma,
+        calc_stdDev,
+        color="red",
+        s=100,
+        zorder=5,
+        label="Prediction"
+    )
+
+    plt.xlabel("sigma")
+    plt.ylabel("stdDev")
+    plt.title("Standard Deviation vs Sigma")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+    plt.savefig(os.path.join(directory, f"Linear Regression plot - Sigma.png"))
+    plt.show()
 
 def graph_linear_regression (multi_results, intercepts, coefs, mu, sigma, calc_average, calc_stdDev, directory):
     df = multi_results.astype(float)
