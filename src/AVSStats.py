@@ -330,34 +330,37 @@ def findAverage_num(real, sim, directory):
                 # then finding a best fit number mu and number sigma from the mean and standard deviation of the real data
                 mus = multi_results['number_mu'].unique()
                 sigmas = multi_results['number_sigma'].unique()
-                if len(mus) >= 2 and len(sigmas) >= 2:
-                    fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
-                    fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
+                fittable_results = multi_results[['number_mu', 'number_sigma', 'average', 'stdDev']]
+                fittable_results.columns = ['mu', 'sigma', 'average', 'stdDev']
+                if len(mus) >= 2 and len(sigmas) >= 2:  #Double regression of both number mu and number sigma against the mean and standard deviation of body number
                     try:
                         best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
                         df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                        print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
                         include =check_in_range_number(fittable_results, best_mu, best_sigma)
                     except:
                         print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
-                elif len(sigmas) == 1:
+                elif len(sigmas) == 1:  #Doing a single regression of number mu vs the mean number, in the case where number sigma is fixed
                     best_mu, best_mean = mu_linear_regression(fittable_results, real_Average, directory)
                     best_sigma, best_SD = np.nan, np.nan
                     df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    include = check_in_range_number(fittable_results, df_best_fit, best_mu, best_sigma, sim)
-                elif len(mus) == 1:
+                    print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
+                    include = check_in_range_number(fittable_results, best_mu, best_sigma)
+                elif len(mus) == 1:  #Doing a single regression of number sigma vs the number standard deviation, in the case where number mu is fixed
                     best_sigma, best_SD = sigma_linear_regression(fittable_results, real_stdDev, directory)
                     best_mu, best_mean = np.nan, np.nan
                     df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    include = check_in_range_number(fittable_results, df_best_fit, best_mu, best_sigma, sim)
+                    print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
+                    include = check_in_range_number(fittable_results, best_mu, best_sigma)
             else: include = False
             if include:
                 df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
-
-    print("Best fit parameters:")
-    print(df_best_fit_all)
+    if len(df_best_fit_all) > 0:
+        print("Best fit parameters:")
+        print(df_best_fit_all)
     print("Full results:")
     print(multi_results)
-    
+
     multi_results_full = pd.concat([df_best_fit_all, multi_results], ignore_index=True)
     with open(os.path.join(directory, 'sim_body_number_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
@@ -391,6 +394,7 @@ def check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim):
     # Check to make sure the mu and sigma values are within the range of the simulated data; otherwise give a message and throw out.
     print("\nHere are the statistics for your simulated data.")
     print(multi_results)
+    print(f"The mu and sigma that are calculated to provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
     if best_mu < sim['size_mu'].min(): 
         print(f"The best fit mu, {best_mu}, is smaller than the smallest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
@@ -401,19 +405,18 @@ def check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim):
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with smaller sigma values.")
         multi_results_full = multi_results
-    elif best_sigma > sim['size_sigma'].max():
+    if best_sigma > sim['size_sigma'].max():
         print(f"The best fit sigma, {best_sigma}, is larger than the largest sigma you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger sigma values.")
         multi_results_full = multi_results
-    elif best_mu > sim['size_mu'].max():
+    if best_mu > sim['size_mu'].max():
         print(f"The best fit mu, {best_mu}, is larger than the largest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger mu values.")
         multi_results_full = multi_results
     else:  
         multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)   
-        print(f"The mu and sigma that provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
     return multi_results_full
 
 def compare_distribs_area(real, sim):
