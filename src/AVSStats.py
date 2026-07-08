@@ -64,15 +64,15 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "3"):
                 if programMode == "1":
-                    try:
-                        KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    #try:
+                    KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
+                    # except:
+                    #     loadDataMessage()
                 elif programMode == "2":
-                    try:
-                        KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
-                    except:
-                        loadDataMessage()
+                    # try:
+                    KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
+                    # except:
+                    #     loadDataMessage()
 
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
@@ -255,26 +255,40 @@ def findAverage_size(real, sim, directory):
             results = pd.DataFrame([[mu, sigma, Length, Average, Largest, Smallest, stdDev]], columns = columns_sim)
             multi_results = pd.concat([multi_results, results], ignore_index= True)
    
+    print("\nHere are the statistics for your simulated data.")
+    print(multi_results)
     #Doing a linear regression for mu and sigma vs mean and standard deviation for the simulated data, 
-    # then finding a best fit mu and sigma from the mean and standard deviation of the real data
+    # then finding a best fit mu and sigma from the mean and standard deviation of the real data (and verifying it is in range)
+    sim_for_checking = sim[['size_mu', 'size_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma']
     if len(mus) >= 2 and len(sigmas) >= 2:
         try:
             best_mu, best_sigma, best_mean, best_SD = linear_regression(multi_results, real_Average, real_stdDev, directory)
             df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-            multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+            print(f"The mu and sigma that are calculated to provide the best fit to the average and standard deviation of your real data are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")
+            include = check_in_range_general( sim_for_checking, best_mu, best_sigma)
+            
         except:
             print("No best fit mu and sigma could be found.")
             multi_results_full = multi_results
+            include = False
     elif len(sigmas) == 1:
         best_mu, best_mean = mu_linear_regression(multi_results, real_Average, directory)
         best_sigma, best_SD = np.nan, np.nan
         df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-        multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+        print(f"The mu that is calculated to provide the best fit to the average of your real data is: mu={best_mu:.4f}")
+        include = check_in_range_general( sim_for_checking, best_mu, best_sigma)
     elif len(mus) == 1: 
         best_sigma, best_SD = sigma_linear_regression(multi_results, real_stdDev, directory)
         best_mu, best_mean = np.nan, np.nan
         df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-        multi_results_full = check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim)
+        print(f"The sigma that is calculated to provide the best fit to the standard deviation of your real data is: sigma={best_sigma:.4f}")
+        include = check_in_range_general( sim_for_checking, best_mu, best_sigma)
+    
+    if include:
+        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)
+    else:
+        multi_results_full = multi_results
 
     with open(os.path.join(directory, 'sim_body_size_statistics.csv'), 'w') as f:  
         multi_results_full.to_csv(f, index = False) 
@@ -336,22 +350,22 @@ def findAverage_num(real, sim, directory):
                     try:
                         best_mu, best_sigma, best_mean, best_SD = linear_regression(fittable_results, real_Average, real_stdDev, directory)
                         df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                        print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
-                        include =check_in_range_number(fittable_results, best_mu, best_sigma)
+                        print(f"The calculated best fit parameters are number mu = {best_mu:.4f}, number sigma = {best_sigma:.4f}")
+                        include =check_in_range_general(fittable_results, best_mu, best_sigma)
                     except:
                         print("No best fit mu and sigma could be found for this combination of size mu and sigma.")
                 elif len(sigmas) == 1:  #Doing a single regression of number mu vs the mean number, in the case where number sigma is fixed
                     best_mu, best_mean = mu_linear_regression(fittable_results, real_Average, directory)
                     best_sigma, best_SD = np.nan, np.nan
                     df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
-                    include = check_in_range_number(fittable_results, best_mu, best_sigma)
+                    print(f"The calculated best fit parameters are number mu = {best_mu:.4f}, number sigma = {best_sigma:.4f}")
+                    include = check_in_range_general(fittable_results, best_mu, best_sigma)
                 elif len(mus) == 1:  #Doing a single regression of number sigma vs the number standard deviation, in the case where number mu is fixed
                     best_sigma, best_SD = sigma_linear_regression(fittable_results, real_stdDev, directory)
                     best_mu, best_mean = np.nan, np.nan
                     df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
-                    print(f"The calculated best fit parameters are number mu = {best_mu}, number sigma = {best_sigma}")
-                    include = check_in_range_number(fittable_results, best_mu, best_sigma)
+                    print(f"The calculated best fit parameters are number mu = {best_mu:.4f}, number sigma = {best_sigma:.4f}")
+                    include = check_in_range_general(fittable_results, best_mu, best_sigma)
             else: include = False
             if include:
                 df_best_fit_all = pd.concat([df_best_fit_all, df_best_fit], ignore_index=True)
@@ -366,58 +380,30 @@ def findAverage_num(real, sim, directory):
         multi_results_full.to_csv(f, index = False) 
     print("Saved simulated body number statistics to 'sim_body_number_statistics.csv' in the same directory as your original real body data")
 
-def check_in_range_number(fittable_results, best_mu, best_sigma):
+def check_in_range_general(fittable_results, best_mu, best_sigma):
     # Checks if the best fit number mu and sigma are within the range of simulated values; if not, sets "include" to false so we can throw this data out.  
+    include = True
     if best_mu < fittable_results["mu"].min():
-        print(f"The best fit mu, {best_mu}, is smaller than the smallest mu you tested.")
+        print(f"The best fit mu, {best_mu:.4f}, is smaller than the smallest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with smaller mu values.")
         include = False
     if best_sigma < fittable_results["sigma"].min():
-        print(f"The best fit sigma, {best_sigma}, is smaller than the smallest sigma you tested.")
+        print(f"The best fit sigma, {best_sigma:.4f}, is smaller than the smallest sigma you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with smaller sigma values.")
         include = False
     if best_mu > fittable_results["mu"].max():
-        print(f"The best fit mu, {best_mu}, is larger than the largest mu you tested.")
+        print(f"The best fit mu, {best_mu:.4f}, is larger than the largest mu you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger mu values.")
         include = False
     if best_sigma > fittable_results["sigma"].max():
-        print(f"The best fit sigma, {best_sigma}, is larger than the largest sigma you tested.")
+        print(f"The best fit sigma, {best_sigma:.4f}, is larger than the largest sigma you tested.")
         print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
         print("Consider generating more simulated data with larger sigma values.")
         include = False
     return include
-
-def check_in_range(multi_results, df_best_fit, best_mu, best_sigma, sim):
-    # Check to make sure the mu and sigma values are within the range of the simulated data; otherwise give a message and throw out.
-    print("\nHere are the statistics for your simulated data.")
-    print(multi_results)
-    print(f"The mu and sigma that are calculated to provide the best fit to the average and standard deviation of your real data are: mu={best_mu}, sigma={best_sigma}")
-    if best_mu < sim['size_mu'].min(): 
-        print(f"The best fit mu, {best_mu}, is smaller than the smallest mu you tested.")
-        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
-        print("Consider generating more simulated data with smaller mu values.")
-        multi_results_full = multi_results
-    elif best_sigma < sim['size_sigma'].min():
-        print(f"The best fit sigma, {best_sigma}, is smaller than the smallest sigma you tested.")
-        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
-        print("Consider generating more simulated data with smaller sigma values.")
-        multi_results_full = multi_results
-    if best_sigma > sim['size_sigma'].max():
-        print(f"The best fit sigma, {best_sigma}, is larger than the largest sigma you tested.")
-        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
-        print("Consider generating more simulated data with larger sigma values.")
-        multi_results_full = multi_results
-    if best_mu > sim['size_mu'].max():
-        print(f"The best fit mu, {best_mu}, is larger than the largest mu you tested.")
-        print("Therefore, the best fit estimation is not valid, and will not be saved to the output file.")
-        print("Consider generating more simulated data with larger mu values.")
-        multi_results_full = multi_results
-    else:  
-        multi_results_full = pd.concat([df_best_fit, multi_results], ignore_index=True)   
-    return multi_results_full
 
 def compare_distribs_area(real, sim):
     sim = sim['area_scaled']
@@ -433,24 +419,24 @@ def compare_distribs_number(real, sim):
     return ks, es
 
 def multi_compare_area(real, sim, directory):
-    print(sim.head())
+    # Calculates both the KS and the ES statistic for body size, graphs and estimates a best fit.  
     mus = sim['size_mu'].value_counts().index.tolist()      # Extracts all of the different values of mu
     mu_list = sorted(mus) 
-    print(mu_list)
     sigmas = sim['size_sigma'].value_counts().index.tolist()      # Extracts all of the different values of sigma
     sigma_list = sorted(sigmas)
-    print(sigma_list)
-    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue'])
     multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+    sim_for_checking = sim[['size_mu', 'size_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma']
     for mu in mu_list:
         split_data = sim.loc[sim['size_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
             ks, es = compare_distribs_area(real, splitter_data)
-            print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma}is {ks.statistic:.9f}, and the p-value is {ks.pvalue:.9E}, and the statistic location is {ks.statistic_location}. \n")
+            print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {ks.statistic:.4f}, and the p-value is {ks.pvalue:.5E}. \n")
             ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
-            print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu} and sigma = {sigma} is {es.statistic:.9f}, and the p-value is {es.pvalue:.9E}. \n")
+            print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {es.statistic:.1f}, and the p-value is {es.pvalue:.5E}. \n")
             es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
     
@@ -462,10 +448,16 @@ def multi_compare_area(real, sim, directory):
     # Estimating the mu and sigma that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "KS")
-    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
-    full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
-    
+    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
+    print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
+    if include:
+        min_df = pd.DataFrame({'mu': [best_mu], 'sigma' : [best_sigma], 'ks': [interpolated_min_statistic]})
+        full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
+    else:
+        full_ks_results = sorted_ks_results
+
     #Saving the KS results 
     with open(os.path.join(directory, 'ks_results_area.csv'), 'w') as f: 
         full_ks_results.to_csv(f, index = False) 
@@ -479,9 +471,14 @@ def multi_compare_area(real, sim, directory):
     # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "ES")
-    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
-    full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
+    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
+    print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.1f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")
+    include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
+    if include:   
+        min_df = pd.DataFrame({'mu': [best_mu], 'sigma' : [best_sigma], 'es_statistic': [interpolated_min_statistic]})
+        full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
+    else:
+        full_es_results = sorted_es_results
 
     #Saving the ES results
     with open(os.path.join(directory, 'es_results_area.csv'), 'w') as f:    
@@ -491,6 +488,7 @@ def multi_compare_area(real, sim, directory):
     return sorted_ks_results, sorted_es_results 
 
 def multi_compare_number(real, sim, directory):
+    # Calculates both the KS and the ES statistic for body number, graphs and estimates a best fit.  
     size_mu = input("Input the size mu you want to use (run the program in size mode to find this): ")
     size_sigma = input("Input the size sigma you want to use (run the program in size mode to find this): ")
     print(sim.head())
@@ -510,7 +508,7 @@ def multi_compare_number(real, sim, directory):
     sigma_list = sorted(sigmas)
     print(sigma_list)
     #print(type(sigma_list))
-    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+    multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue'])
     multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
     for mu in mu_list:
         split_data = sim.loc[sim['number_mu'] == mu]
@@ -518,7 +516,7 @@ def multi_compare_number(real, sim, directory):
             splitter_data = split_data.loc[split_data['number_sigma'] == sigma]
             #splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
             ks, es = compare_distribs_number(real, splitter_data)
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue), float(ks.statistic_location)]], columns = ['mu', 'sigma', 'ks', 'pvalue', 'statistic_location'])
+            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
             es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
@@ -528,14 +526,23 @@ def multi_compare_number(real, sim, directory):
     print (sorted_ks_results)
     KS_heatmap(sorted_ks_results,  directory = directory)
 
+    sim_for_checking = sim[['number_mu', 'number_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma']
+
     #Estimating the mu and sigma that would minimize the KS statistic
     sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "KS")
-    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'ks': [interpolated_min_statistic]})
-    
+    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
+    print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
+    if include:
+        min_df = pd.DataFrame({'mu': [best_mu], 'sigma' : [best_sigma], 'ks': [interpolated_min_statistic]})
+        full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
+    else:
+        full_ks_results = sorted_ks_results
+
     #Saving the KS results
-    full_ks_results = pd.concat([min_df, sorted_ks_results], ignore_index = True)
     with open(os.path.join(directory, 'ks_results_number.csv'), 'w') as f: 
         full_ks_results.to_csv(f, index = False)
     print("Kolmogorov-Smirnov results and heatmap saved to the same directory as your original real body data")
@@ -548,11 +555,17 @@ def multi_compare_number(real, sim, directory):
     # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
     sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
     sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min = best_fit(sorted_results, directory, stat_name = "ES")
-    min_df = pd.DataFrame({'mu': [interpolated_mu_min], 'sigma' : [interpolated_sigma_min], 'es_statistic': [interpolated_min_statistic]})
-    
+    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
+    print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
+    if include:
+        min_df = pd.DataFrame({'mu': [best_mu], 'sigma' : [best_sigma], 'es_statistic': [interpolated_min_statistic]})
+        full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
+    else:
+        full_es_results = sorted_es_results
+
     #Saving the ES results
-    full_es_results = pd.concat([min_df, sorted_es_results], ignore_index = True)
     with open(os.path.join(directory, 'es_results_number.csv'), 'w') as f:    
             full_es_results.to_csv(f, index = False)
     print("Epps-Singleton results and heatmap saved to the same directory as your original real body data")
@@ -614,16 +627,9 @@ def best_fit(results, directory, stat_name):
 
         interpolated_min_statistic = poly_reg_model.predict(optimal_features)[0]
 
-        print(f"Interpolated mu for minimum statistic: {interpolated_mu_min:.4f}")
-        print(f"Interpolated sigma for minimum statistic: {interpolated_sigma_min:.4f}")
-        print(f"Interpolated minimum statistic: {interpolated_min_statistic:.6f}")
-
     except np.linalg.LinAlgError:
         print("Could not solve the system of equations. The matrix might be singular.")
     
-    print("coeficients of model", coef)
-    print ("intercept", intercept)
-    #print("predicted y values", y_predicted)
     graph_best_fit(results, poly_reg_model, y_predicted, interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min, directory, stat_name)
     return interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min
     
