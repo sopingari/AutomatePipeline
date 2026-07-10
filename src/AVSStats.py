@@ -357,13 +357,13 @@ def findAverage_num(real, sim, directory):
                 elif len(sigmas) == 1:  #Doing a single regression of number mu vs the mean number, in the case where number sigma is fixed
                     best_mu, best_mean = mu_linear_regression(fittable_results, real_Average, directory)
                     best_sigma, best_SD = np.nan, np.nan
-                    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                    df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
                     print(f"The calculated best fit parameters are number mu = {best_mu:.4f}, number sigma = {best_sigma:.4f}")
                     include = check_in_range_general(fittable_results, best_mu, best_sigma)
                 elif len(mus) == 1:  #Doing a single regression of number sigma vs the number standard deviation, in the case where number mu is fixed
                     best_sigma, best_SD = sigma_linear_regression(fittable_results, real_stdDev, directory)
                     best_mu, best_mean = np.nan, np.nan
-                    df_best_fit = pd.DataFrame({'mu' : [best_mu], 'sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
+                    df_best_fit = pd.DataFrame({'size_mu' : [size_mu], 'size_sigma' : [size_sigma], 'number_mu' : [best_mu], 'number_sigma' : [best_sigma], 'length' : ["best fit"], 'average' : [best_mean], 'largest' : ["N/A"], 'smallest' : ["N/A"], 'stdDev' : [best_SD] })
                     print(f"The calculated best fit parameters are number mu = {best_mu:.4f}, number sigma = {best_sigma:.4f}")
                     include = check_in_range_general(fittable_results, best_mu, best_sigma)
             else: include = False
@@ -407,15 +407,34 @@ def check_in_range_general(fittable_results, best_mu, best_sigma):
 
 def compare_distribs_area(real, sim):
     sim = sim['area_scaled']
-    ks = stats.ks_2samp(real, sim)
-    es = stats.epps_singleton_2samp(real, sim)
-    #print (f"The Kolmogorov-Smirnov statistic for your two data sets is {ks.statistic:.3f}, and the p-value is {ks.pvalue:.2E}. \n")
+    try:
+        ks = stats.ks_2samp(real, sim)
+    except:
+        print("an error occurred while calculating the Kolmogorov-Smirnov statistic - double check your data")
+        ks = None
+
+    try:    
+        es = stats.epps_singleton_2samp(real, sim)
+    except:
+        print("an error occurred while calculating the Kolmogorov-Smirnov statistic - double check your data")
+        ks = None
+    
     return ks, es
 
 def compare_distribs_number(real, sim):
     sim = sim['number']
-    ks = stats.ks_2samp(real, sim)
-    es = stats.epps_singleton_2samp(real, sim)
+    try:
+        ks = stats.ks_2samp(real, sim)
+    except:
+        print("an error occurred while calculating the Kolmogorov-Smirnov statistic - double check your data")
+        ks = None
+        
+    try:
+        es = stats.epps_singleton_2samp(real, sim)
+    except:
+        print("an error occurred while calculating the Epps-Singleton statistic - double check your data")
+        es = None
+
     return ks, es
 
 def multi_compare_area(real, sim, directory):
@@ -432,17 +451,32 @@ def multi_compare_area(real, sim, directory):
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['size_sigma'] == sigma]
             ks, es = compare_distribs_area(real, splitter_data)
-            print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {ks.statistic:.4f}, and the p-value is {ks.pvalue:.5E}. \n")
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
+
+            if ks is not None:
+                print (f"The Kolmogorov-Smirnov statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {ks.statistic:.4f}, and the p-value is {ks.pvalue:.5E}. \n")
+                ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
+            else:
+                ks_results = pd.DataFrame([[mu, sigma, np.nan, np.nan]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
+            
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
-            print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {es.statistic:.1f}, and the p-value is {es.pvalue:.5E}. \n")
-            es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+            
+            if es is not None:
+                print (f"The Epps-Singleton statistic for your real data vs the simulated data for mu = {mu:.4f} and sigma = {sigma:.4f} is {es.statistic:.1f}, and the p-value is {es.pvalue:.5E}. \n")
+                es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+            else:    
+                es_results = pd.DataFrame([[mu, sigma, np.nan, np.nan]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
-    
+
     # Sorting the KS results by ks statistic and making a heatmap
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
     print (sorted_ks_results)
-    KS_heatmap(sorted_ks_results,  directory = directory)
+
+    try:
+        KS_heatmap(sorted_ks_results,  directory = directory)
+    except Exception as e:
+        print(f"An error occurred while creating the KS heatmap: {e}")
+
     sim_for_checking = sim[['size_mu', 'size_sigma']]
     sim_for_checking.columns = ['mu', 'sigma']
     
@@ -482,7 +516,11 @@ def multi_compare_area(real, sim, directory):
     # Sorting the ES results by ES statistic and making a heatmap
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
-    ES_heatmap(sorted_es_results, directory = directory) 
+    try:
+        ES_heatmap(sorted_es_results, directory = directory)
+    except Exception as e:
+        print(f"An error occurred while creating the ES heatmap: {e}")
+
     sim_for_checking = sim[['size_mu', 'size_sigma']]
     sim_for_checking.columns = ['mu', 'sigma']   
     
@@ -526,7 +564,6 @@ def multi_compare_number(real, sim, directory):
     size_mu = input("Input the size mu you want to use (run the program in size mode to find this): ")
     size_sigma = input("Input the size sigma you want to use (run the program in size mode to find this): ")
     print(sim.head())
-    # print(sim.dtypes)
     sim = sim[(sim['size_mu']) == float(size_mu)]  #filters the data to only include the specified size mu
     print(sim.head()) 
     sim = sim[(sim['size_sigma']) == float(size_sigma)]  #filters the data to only include the specified size sigma
@@ -537,28 +574,38 @@ def multi_compare_number(real, sim, directory):
     mus = sim['number_mu'].value_counts().index.tolist()      # Extracts all of the different values of number mu
     mu_list = sorted(mus) 
     print(mu_list)
-    #print(type(mu_list))
     sigmas = sim['number_sigma'].value_counts().index.tolist()      # Extracts all of the different values of number sigma
     sigma_list = sorted(sigmas)
     print(sigma_list)
-    #print(type(sigma_list))
     multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue'])
     multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
     for mu in mu_list:
         split_data = sim.loc[sim['number_mu'] == mu]
         for sigma in sigma_list:
             splitter_data = split_data.loc[split_data['number_sigma'] == sigma]
-            #splitter_data.to_csv(os.path.join(directory, f"splitter_data_number_mu{mu}_sigma{sigma}.csv"), index = False)  #Saving the data for each mu and sigma combination to a csv file for verification
             ks, es = compare_distribs_number(real, splitter_data)
-            ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
-            es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+            if ks is not None:
+                ks_results = pd.DataFrame([[mu, sigma, float(ks.statistic), float(ks.pvalue)]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
+            else:
+                ks_results = pd.DataFrame([[mu, sigma, np.nan, np.nan]], columns = ['mu', 'sigma', 'ks', 'pvalue'])
+
+            if es is not None:
+                es_results = pd.DataFrame([[mu, sigma, float(es.statistic), float(es.pvalue)]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+            else:
+                es_results = pd.DataFrame([[mu, sigma, np.nan, np.nan]], columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
+
             multi_ks_results = pd.concat([multi_ks_results, ks_results], ignore_index= True)
             multi_es_results = pd.concat([multi_es_results, es_results], ignore_index= True)
 
     #Sorting the KS results by KS statistic and making and saving a heatmap
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
     print (sorted_ks_results)
-    KS_heatmap(sorted_ks_results,  directory = directory)
+
+    try:
+        KS_heatmap(sorted_ks_results,  directory = directory)
+    except Exception as e:
+        print(f"An error occurred while creating the KS heatmap: {e}")
+
     sim_for_checking = sim[['number_mu', 'number_sigma']]
     sim_for_checking.columns = ['mu', 'sigma']
 
@@ -603,7 +650,11 @@ def multi_compare_number(real, sim, directory):
     # Sorting the ES results by ES statistic and making a heatmap
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
-    ES_heatmap(sorted_es_results, directory = directory) 
+    try:
+        ES_heatmap(sorted_es_results, directory = directory)
+    except Exception as e:
+        print(f"An error occurred while creating the ES heatmap: {e}")
+
     sim_for_checking = sim[['number_mu', 'number_sigma']]
     sim_for_checking.columns = ['mu', 'sigma'] 
 
@@ -668,7 +719,8 @@ def ES_heatmap(es_results, directory):
 def best_fit(results, directory, stat_name):
     #Find best fit values of mu and sigma that minimize the statistic
     #Using a 2nd order polynomial regression and fitting both mu and sigma
-    y_predicted, poly_reg_model = predict(results)
+    results_cleaned = results.dropna()
+    y_predicted, poly_reg_model = predict(results_cleaned)
 
     # This code from Gemini 2.5 (via google Colab)
     # Get the coefficients from the trained linear regression model
@@ -702,7 +754,7 @@ def best_fit(results, directory, stat_name):
     except np.linalg.LinAlgError:
         print("Could not solve the system of equations. The matrix might be singular.")
     
-    graph_best_fit(results, poly_reg_model, y_predicted, interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min, directory, stat_name)
+    graph_best_fit(results_cleaned, poly_reg_model, y_predicted, interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min, directory, stat_name)
     return interpolated_min_statistic, interpolated_mu_min, interpolated_sigma_min
     
 #Order 2 polynomial model, predicting statistic from mu and sigma
@@ -717,10 +769,11 @@ def predict(results):
 def best_fit_single(results, directory, stat_name, mu_or_sigma):
     # Find the best fit value of mu that minimizes the statistic
     # Using a 2nd order polynomial regression and fitting only mu
+    results_cleaned = results.dropna()
     pr = PolynomialFeatures(degree = 2, include_bias = False)
-    s_poly = pr.fit_transform(results[[mu_or_sigma]])
+    s_poly = pr.fit_transform(results_cleaned[[mu_or_sigma]])
     poly_reg_model = LinearRegression()
-    poly_reg_model.fit(s_poly, results['statistic'])
+    poly_reg_model.fit(s_poly, results_cleaned['statistic'])
     y_predicted = poly_reg_model.predict(s_poly)
     
     coef = poly_reg_model.coef_
@@ -732,7 +785,7 @@ def best_fit_single(results, directory, stat_name, mu_or_sigma):
     best_fit = -b / (2 * a)
     interpolated_min_statistic = (a * (best_fit ** 2)) + (b * best_fit) + c
     
-    graph_best_fit_single(results, poly_reg_model, pr, interpolated_min_statistic, best_fit, directory, stat_name, mu_or_sigma)
+    graph_best_fit_single(results_cleaned, poly_reg_model, pr, interpolated_min_statistic, best_fit, directory, stat_name, mu_or_sigma)
     return interpolated_min_statistic, best_fit
 
 
