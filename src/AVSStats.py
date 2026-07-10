@@ -426,8 +426,7 @@ def multi_compare_area(real, sim, directory):
     sigma_list = sorted(sigmas)
     multi_ks_results = pd.DataFrame(columns = ['mu', 'sigma', 'ks', 'pvalue'])
     multi_es_results = pd.DataFrame(columns = ['mu', 'sigma', 'es_statistic', 'es_pvalue'])
-    sim_for_checking = sim[['size_mu', 'size_sigma']]
-    sim_for_checking.columns = ['mu', 'sigma']
+
     for mu in mu_list:
         split_data = sim.loc[sim['size_mu'] == mu]
         for sigma in sigma_list:
@@ -444,12 +443,29 @@ def multi_compare_area(real, sim, directory):
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks')
     print (sorted_ks_results)
     KS_heatmap(sorted_ks_results,  directory = directory)
+    sim_for_checking = sim[['size_mu', 'size_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma']
     
-    # Estimating the mu and sigma that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
-    sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
-    sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
-    print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+    if len(mu_list) > 1 and len(sigma_list) > 1:
+        # Estimating the mu and sigma that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
+        sorted_results.columns = ["mu", "sigma", "statistic"]
+        interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
+        print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    elif len(mu_list) > 1 and len(sigma_list) == 1:
+        # Estimating the mu that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_ks_results[["mu", "ks"]]
+        sorted_results.columns = ["mu", "statistic"]
+        interpolated_min_statistic, best_mu = best_fit_single(sorted_results, directory, stat_name = "KS", mu_or_sigma="mu")
+        best_sigma = sigma_list[0]  # Use the single sigma value
+
+    elif len(mu_list) == 1 and len(sigma_list) > 1:
+        # Estimating the sigma that would give the lowest possible ks statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_ks_results[["sigma", "ks"]]
+        sorted_results.columns = ["sigma", "statistic"]
+        interpolated_min_statistic, best_sigma = best_fit_single(sorted_results, directory, stat_name = "KS", mu_or_sigma="sigma")
+        best_mu = mu_list[0]  # Use the single mu value
 
     include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
     if include:
@@ -466,13 +482,31 @@ def multi_compare_area(real, sim, directory):
     # Sorting the ES results by ES statistic and making a heatmap
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
-    ES_heatmap(sorted_es_results, directory = directory)    
+    ES_heatmap(sorted_es_results, directory = directory) 
+    sim_for_checking = sim[['size_mu', 'size_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma']   
     
-    # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
-    sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
-    sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
-    print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.1f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")
+    if len(mu_list) > 1 and len(sigma_list) > 1:
+        # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
+        sorted_results.columns = ["mu", "sigma", "statistic"]
+        interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
+        print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.1f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")
+    
+    elif len(mu_list) > 1 and len(sigma_list) == 1:
+        # Estimating the mu that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_es_results[["mu", "es_statistic"]]
+        sorted_results.columns = ["mu", "statistic"]
+        interpolated_min_statistic, best_mu = best_fit_single(sorted_results, directory, stat_name = "ES", mu_or_sigma="mu")
+        print(f"The mu that is calculated to give a minimized ES value ({interpolated_min_statistic:.1f}) is: mu={best_mu:.4f}")
+   
+    elif len(mu_list) == 1 and len(sigma_list) > 1:
+        # Estimating the sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_es_results[["sigma", "es_statistic"]]
+        sorted_results.columns = ["sigma", "statistic"]
+        interpolated_min_statistic, best_sigma = best_fit_single(sorted_results, directory, stat_name = "ES", mu_or_sigma="sigma")
+        print(f"The sigma that is calculated to give a minimized ES value ({interpolated_min_statistic:.1f}) is: sigma={best_sigma:.4f}")
+
     include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
     if include:   
         min_df = pd.DataFrame({'mu': [best_mu], 'sigma' : [best_sigma], 'es_statistic': [interpolated_min_statistic]})
@@ -525,15 +559,34 @@ def multi_compare_number(real, sim, directory):
     sorted_ks_results = multi_ks_results.sort_values(by = 'ks') 
     print (sorted_ks_results)
     KS_heatmap(sorted_ks_results,  directory = directory)
-
     sim_for_checking = sim[['number_mu', 'number_sigma']]
     sim_for_checking.columns = ['mu', 'sigma']
 
-    #Estimating the mu and sigma that would minimize the KS statistic
-    sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
-    sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
-    print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+    if len(mu_list) > 1 and len(sigma_list) > 1:
+
+        #Estimating the mu and sigma that would minimize the KS statistic
+        sorted_results = sorted_ks_results[["mu", "sigma", "ks"]]
+        sorted_results.columns = ["mu", "sigma", "statistic"]
+        interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "KS")
+        print(f"The mu and sigma that are calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    elif len(mu_list) > 1 and len(sigma_list) == 1:
+
+        #Estimating the mu that would minimize the KS statistic
+        sorted_results = sorted_ks_results[["mu", "ks"]]
+        sorted_results.columns = ["mu", "statistic"]
+        best_sigma = np.nan
+        interpolated_min_statistic, best_mu= best_fit_single(sorted_results, directory, stat_name = "KS", mu_or_sigma="mu")
+        print(f"The mu that is calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) is: mu={best_mu:.4f}")               
+
+    elif len(mu_list) == 1 and len(sigma_list) > 1:
+
+        #Estimating the sigma that would minimize the KS statistic
+        sorted_results = sorted_ks_results[["sigma", "ks"]]
+        sorted_results.columns = ["sigma", "statistic"]
+        best_mu = np.nan
+        interpolated_min_statistic, best_sigma= best_fit_single(sorted_results, directory, stat_name = "KS", mu_or_sigma="sigma")
+        print(f"The sigma that is calculated to give a minimized KS value ({interpolated_min_statistic:.4f}) is: sigma={best_sigma:.4f}")               
 
     include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
     if include:
@@ -550,13 +603,30 @@ def multi_compare_number(real, sim, directory):
     # Sorting the ES results by ES statistic and making a heatmap
     sorted_es_results = multi_es_results.sort_values(by = 'es_statistic') 
     print (sorted_es_results)
-    ES_heatmap(sorted_es_results, directory = directory)  
+    ES_heatmap(sorted_es_results, directory = directory) 
+    sim_for_checking = sim[['number_mu', 'number_sigma']]
+    sim_for_checking.columns = ['mu', 'sigma'] 
 
-    # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
-    sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
-    sorted_results.columns = ["mu", "sigma", "statistic"]
-    interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
-    print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+    if len(mu_list) > 1 and len(sigma_list) > 1:
+        # Estimating the mu and sigma that would give the lowest possible ES statistic based on fitting a 2nd order polynomial to the data
+        sorted_results = sorted_es_results[["mu", "sigma", "es_statistic"]]
+        sorted_results.columns = ["mu", "sigma", "statistic"]
+        interpolated_min_statistic, best_mu, best_sigma = best_fit(sorted_results, directory, stat_name = "ES")
+        print(f"The mu and sigma that are calculated to give a minimized ES value ({interpolated_min_statistic:.4f}) are: mu={best_mu:.4f}, sigma={best_sigma:.4f}")               
+
+    elif len (mu_list) > 1 and len(sigma_list) ==1:
+        # Estimating the mu that would minimize the ES statistic    
+        sorted_results = sorted_es_results[["mu", "es_statistic"]]
+        sorted_results.columns = ["mu", "statistic"]
+        interpolated_min_statistic, best_mu = best_fit_single(sorted_results, directory, stat_name = "ES", mu_or_sigma="mu")
+        print(f"The mu that is calculated to give a minimized ES value ({interpolated_min_statistic:.4f}) is: mu={best_mu:.4f}")
+
+    elif len(mu_list) == 1 and len(sigma_list) > 1:
+        #Estimating the sigma that would minimize the ES statistic
+        sorted_results = sorted_es_results[["sigma", "es_statistic"]]
+        sorted_results.columns = ["sigma", "statistic"]
+        interpolated_min_statistic, best_sigma = best_fit_single(sorted_results, directory, stat_name = "ES", mu_or_sigma="sigma")
+        print(f"The sigma that is calculated to give a minimized ES value ({interpolated_min_statistic:.4f}) is: sigma={best_sigma:.4f}")
 
     include =check_in_range_general(sim_for_checking, best_mu, best_sigma)   #Verifying that the estimated mu and sigma are within the range of the simulated data
     if include:
@@ -594,8 +664,10 @@ def ES_heatmap(es_results, directory):
     plt.savefig(os.path.join(directory, f"ES_heatmap.png"))
     plt.show()
 
-#Find best fit values of mu and sigma that minimize the statistic
+
 def best_fit(results, directory, stat_name):
+    #Find best fit values of mu and sigma that minimize the statistic
+    #Using a 2nd order polynomial regression and fitting both mu and sigma
     y_predicted, poly_reg_model = predict(results)
 
     # This code from Gemini 2.5 (via google Colab)
@@ -641,6 +713,28 @@ def predict(results):
     poly_reg_model.fit(s_poly, results['statistic'])
     y_predicted = poly_reg_model.predict(s_poly)
     return y_predicted, poly_reg_model
+
+def best_fit_single(results, directory, stat_name, mu_or_sigma):
+    # Find the best fit value of mu that minimizes the statistic
+    # Using a 2nd order polynomial regression and fitting only mu
+    pr = PolynomialFeatures(degree = 2, include_bias = False)
+    s_poly = pr.fit_transform(results[[mu_or_sigma]])
+    poly_reg_model = LinearRegression()
+    poly_reg_model.fit(s_poly, results['statistic'])
+    y_predicted = poly_reg_model.predict(s_poly)
+    
+    coef = poly_reg_model.coef_
+    b = coef[0]                       # Coefficient for mu
+    a = coef[1]                       # Coefficient for mu^2
+    c = poly_reg_model.intercept_     # Intercept
+
+    # Calculate the exact mu that minimizes the function
+    best_fit = -b / (2 * a)
+    interpolated_min_statistic = (a * (best_fit ** 2)) + (b * best_fit) + c
+    
+    graph_best_fit_single(results, poly_reg_model, pr, interpolated_min_statistic, best_fit, directory, stat_name, mu_or_sigma)
+    return interpolated_min_statistic, best_fit
+
 
 def linear_regression(multi_results, real_Average, real_stdDev, directory):  # Coded with help from CoPilot
     # Creating the multi-fit linear model
@@ -692,12 +786,12 @@ def mu_linear_regression(multi_results, real_Average, directory):
     coef = model.coef_
 
     #Solve for best fit mu based on the real mean
-    mu = (real_Average - intercept) / coef[0] 
+    mu = (real_Average - intercept[0]) / coef[0] 
     calc_average = intercept[0] + coef[0] * mu
 
     graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average, directory)
 
-    return mu, calc_average
+    return mu[0], calc_average[0]
 
 def sigma_linear_regression(multi_results, real_stdDev, directory):
     # A simple linear model using only sigma and fitting only to the standard deviation values
@@ -711,12 +805,12 @@ def sigma_linear_regression(multi_results, real_stdDev, directory):
     coef = model.coef_
 
     # Solve for best fit sigma based on the real standard deviation
-    sigma = (real_stdDev - intercept) / coef[0]
+    sigma = (real_stdDev - intercept[0]) / coef[0]
     calc_stdDev = intercept[0] + coef[0] * sigma
 
     graph_sigma_linear_regression(multi_results, intercept, coef, sigma, calc_stdDev, directory)
 
-    return sigma, calc_stdDev
+    return sigma[0], calc_stdDev[0]
 
 def graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average, directory):
     df = multi_results.astype(float)
@@ -1045,6 +1139,54 @@ def graph_best_fit (results, poly_reg_model, y_predicted, interpolated_min_stati
 
     plt.tight_layout()
     plt.savefig(os.path.join(directory, f"polynomial regression plot for {stat_name}.png"))
+    plt.show()
+
+def graph_best_fit_single (results, poly_reg_model, pr, interpolated_min_statistic, best_fit, directory, stat_name, mu_or_sigma):
+    # Graph polynomial best fit for either mu or sigma
+    df = results.astype(float)
+    
+    intercept = poly_reg_model.intercept_
+    coef = poly_reg_model.coef_
+
+    plt.figure(figsize=(8, 6))
+    if mu_or_sigma == "mu":
+        plt.scatter(df["mu"], df["statistic"], color="blue", alpha=0.7)
+        plt.xlabel("mu")
+        plt.ylabel("statistic")
+    elif mu_or_sigma == "sigma":
+        plt.scatter(df["sigma"], df["statistic"], color="blue", alpha=0.7)
+        plt.xlabel("sigma")
+        plt.ylabel("statistic")
+
+    plot_range = np.linspace(results[mu_or_sigma].min(), results[mu_or_sigma].max(), 100).reshape(-1, 1)
+    plot_poly = pr.transform(plot_range)
+    y_plot = poly_reg_model.predict(plot_poly)
+    plt.scatter(results[mu_or_sigma], results['statistic'], color='blue', alpha=0.6, label='Data Points')
+    plt.plot(plot_range, y_plot, color='red', linewidth=2, label='Polynomial Fit')
+
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.5)
+
+    curve_eq = (f"{coef[1]:.4f}*{mu_or_sigma}**2  + {coef[0]:.4f}*{mu_or_sigma} + statistic = {intercept:.3f}")  
+
+    best_fit_desc = (f"best fit {mu_or_sigma} = {best_fit:.3f}; statistic of best fit = {interpolated_min_statistic:.5f}")
+
+    plt.text(
+        0.05,
+        0.95,
+        curve_eq,
+        transform=plt.gca().transAxes
+    )
+
+    plt.text(
+        0.05,
+        0.90,
+        best_fit_desc,
+        transform=plt.gca().transAxes
+    )
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(directory, f"polynomial regression plot for {stat_name} over {mu_or_sigma}.png"))
     plt.show()
 
 
