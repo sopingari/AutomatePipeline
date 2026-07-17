@@ -141,7 +141,12 @@ def loadDataNumber(fileSelectOpt):
         real_slices = pullData(inputFile, head = None) 
         real_slices.columns = ['image', 'number']
         # Adding zeros for the empty images. Verified to work.  
-        noBodies = int(input("How many additional vacuole images were not analyzed because they did not contain any bodies?"))
+        noBodies = None
+        while noBodies == None:
+            try:
+                noBodies = int(input("How many additional vacuole images were not analyzed because they did not contain any bodies?"))
+            except ValueError:
+                print("Invalid input.  Please enter the number of vacuoles with no bodies not included in this data.  If all empty vacuoles are already included, enter 0")
         if noBodies > 0:
             real_slices = real_slices['number'].astype(int)
             print(real_slices)  
@@ -842,7 +847,7 @@ def mu_linear_regression(multi_results, real_Average, directory):
     mu = (real_Average - intercept[0]) / coef[0] 
     calc_average = intercept[0] + coef[0] * mu
 
-    graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average, directory)
+    graph_mu_linear_regression(multi_results, intercept, coef, mu[0], calc_average[0], directory)
 
     return mu[0], calc_average[0]
 
@@ -861,7 +866,7 @@ def sigma_linear_regression(multi_results, real_stdDev, directory):
     sigma = (real_stdDev - intercept[0]) / coef[0]
     calc_stdDev = intercept[0] + coef[0] * sigma
 
-    graph_sigma_linear_regression(multi_results, intercept, coef, sigma, calc_stdDev, directory)
+    graph_sigma_linear_regression(multi_results, intercept, coef, sigma[0], calc_stdDev[0], directory)
 
     return sigma[0], calc_stdDev[0]
 
@@ -880,27 +885,14 @@ def graph_mu_linear_regression(multi_results, intercept, coef, mu, calc_average,
 
     # Add equation text to plot
     equation = f"average = {intercept[0]:.3f} + {coef[0][0]:.3f} x mu"
-    plt.text(
-        0.05,
-        0.95,
-        equation,
-        transform=plt.gca().transAxes,
-        fontsize=11,
-        verticalalignment="top",
-        bbox=dict(facecolor="white", alpha=0.8)
-    )
+    prediction = f"Best fit mu: {mu:.3f}, Predicted average: {calc_average:.3f}"
+    plt.text(0.05, 0.95, equation, transform=plt.gca().transAxes, fontsize=11, verticalalignment="top", bbox=dict(facecolor="white", alpha=0.8))
+    plt.text(0.05, 0.90, prediction, transform=plt.gca().transAxes, fontsize=11, verticalalignment="top", bbox=dict(facecolor="white", alpha=0.8))
 
     # Single point to highlight
     calc_average = intercept + coef[0] * mu
 
-    plt.scatter(
-        mu,
-        calc_average,
-        color="red",
-        s=100,
-        zorder=5,
-        label="Prediction"
-    )
+    plt.scatter(mu, calc_average, color="red", s=100, zorder=5, label="Prediction")
 
     plt.xlabel("mu")
     plt.ylabel("average")
@@ -926,27 +918,14 @@ def graph_sigma_linear_regression(multi_results, intercept, coef, sigma, calc_st
 
     # Add equation text to plot
     equation = f"stdDev = {intercept[0]:.3f} + {coef[0][0]:.3f} x sigma"
-    plt.text(
-        0.05,
-        0.95,
-        equation,
-        transform=plt.gca().transAxes,
-        fontsize=11,
-        verticalalignment="top",
-        bbox=dict(facecolor="white", alpha=0.8)
-    )
+    prediction = f"Best fit sigma: {sigma:.3f}, Predicted standard deviation: {calc_stdDev:.3f}"
+    plt.text(0.05, 0.95, equation, transform=plt.gca().transAxes, fontsize=11, verticalalignment="top", bbox=dict(facecolor="white", alpha=0.8))
+    plt.text(0.05, 0.90, prediction, transform=plt.gca().transAxes, fontsize=11, verticalalignment="top", bbox=dict(facecolor="white", alpha=0.8))
 
     # Single point to highlight
     calc_stdDev = intercept[0] + coef[0][0] * sigma
 
-    plt.scatter(
-        sigma,
-        calc_stdDev,
-        color="red",
-        s=100,
-        zorder=5,
-        label="Prediction"
-    )
+    plt.scatter(sigma, calc_stdDev, color="red", s=100, zorder=5, label="Prediction")
 
     plt.xlabel("sigma")
     plt.ylabel("stdDev")
@@ -1743,8 +1722,6 @@ def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None
             sim_length = len(sim_filtered)
             if (sim_length < min_sim_length) and (sim_length > 0):  #Finding the length of the smallest simulated data set that is being plotted to use for resizing the real data if necessary.
                 min_sim_length = sim_length
-    print ("realy data length:", real_data_length)
-    print ("min sim length:", min_sim_length)
     if real_data_length > 2*min_sim_length:
         print("Your real data has more than twice as many data points as your simulated data - generate more simulated data to use this graphing method")
         return
@@ -1776,11 +1753,7 @@ def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None
                     max_graph = max
                 data[f"mu = {number_mu}, sigma = {number_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
                 headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
-    print("headers:", headers)
-    print("data:", data)
-    print ("max value for x-axis:", max_graph)
     samples=data.to_numpy().T
-    print("samples:", samples)
 
     fig = ridgeplot(
         samples=samples,
