@@ -16,11 +16,14 @@ PyQt5==5.15.9
 PyQt5-sip==12.17.2
 QScintilla==2.14.1
 scikit-image==0.24.0
-statsmodels==0.14.4
 tqdm==4.66.5
 tifffile==2024.9.20
 unzip==1.0.0
-vtk==9.5.2
 zstandard==0.23.0
 pandas==2.2.3
 scipy==1.14.1
+ridgeplot==0.6.0
+seaborn==0.13.2
+scikit-learn==1.7.2
+statsmodels==0.14.6
+#vtk==9.5.2
