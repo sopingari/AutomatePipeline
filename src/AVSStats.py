@@ -1680,32 +1680,37 @@ def ridgelinePlot_area(real, sim, directory, size_mu_list=None, size_sigma_list=
                 if max_99 > max_graph:
                     max_graph = max_99
                 data[f"mu = {size_mu}, sigma = {size_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
-                headers.append(f"mu = {size_mu}, sigma = {size_sigma}")
+                headers.append(f"mu = {size_mu}, sigma = {size_sigma}")   
     
-
+    # Melt the dataframe to a long format suitable for FacetGrid
+    data.columns = [headers]
+    df = data.melt(var_name='category', value_name='value')
+    
+    #Create Ridgeline plot using seaborne 
     sns.set_theme(style="white", rc={
         "axes.facecolor": (0, 0, 0, 0),
         "axes.grid": True,
-        "grid.color": "rgba(0, 0, 0, 0.1)", 
-        "font.size": 12                     
+        "grid.color": "#CCCCCC",
+        "font.size": 12
     })
-
-    g = sns.FacetGrid(df, row="headers", hue="headers", aspect=5, height=1.2, palette="viridis") 
-    g.map(sns.kdeplot, "data", bw_adjust=1, clip=(0, max_graph), fill=True, alpha=0.6)  
-    g.map(sns.kdeplot, "data", bw_adjust=1, clip=(0, max_graph), color="black", lw=1) 
+    
+    g = sns.FacetGrid(df, row="category", hue="category", aspect=5, height=1.2, palette="viridis")
+    g.map(sns.kdeplot, "value", bw_adjust=1, clip=(0, max_graph), fill=True, alpha=0.6)
+    g.map(sns.kdeplot, "value", bw_adjust=1, clip=(0, max_graph), color="black", lw=1)
     g.figure.subplots_adjust(hspace=-0.5)
     
     # Clean up the axes and apply labels
-    g.set_titles("")                 
-    g.set(yticks=[], ylabel="")     
+    g.set_titles("")
+    g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
-    for ax, label in zip(g.axes.flat, headers):
-        ax.text(-0.02, 0.2, label, fontweight='bold', color='black', 
+    for ax, label in zip(g.axes.flat, df['category'].unique()):
+        ax.text(-0.02, 0.2, label, fontweight='bold', color='black',
                 ha='right', va='center', transform=ax.transAxes)
     g.figure.set_size_inches(8, 8)
     
     output_path = os.path.join(directory, f"Ridgeline_plot_area.png")
     plt.savefig(output_path, dpi=100, bbox_inches='tight', facecolor='white')
+    plt.show()
     plt.close(g.figure)
 
 def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None, number_mu_list=None, number_sigma_list=None):
@@ -1755,29 +1760,35 @@ def ridgelinePlot_number(real, sim, directory, size_mu = None, size_sigma = None
                 data[f"mu = {number_mu}, sigma = {number_sigma}"] = sim1.to_numpy()[:data_length]   #The "to_numpy" is so that it doesn't try to line them up by index, which leads to a lot of NaN's   
                 headers.append(f"mu = {number_mu}, sigma = {number_sigma}")
    
+    # Melt the dataframe to a long format suitable for FacetGrid
+    data.columns = [headers]
+    df = data.melt(var_name='category', value_name='value')
+    
+    #Create Ridgeline plot using seaborne 
     sns.set_theme(style="white", rc={
         "axes.facecolor": (0, 0, 0, 0),
         "axes.grid": True,
-        "grid.color": "rgba(0, 0, 0, 0.1)", 
-        "font.size": 12                     
+        "grid.color": "#CCCCCC",
+        "font.size": 12
     })
-
-    g = sns.FacetGrid(df, row="headers", hue="headers", aspect=5, height=1.2, palette="viridis") 
-    g.map(sns.kdeplot, "data", bw_adjust=1, clip=(0, max_graph), fill=True, alpha=0.6)  
-    g.map(sns.kdeplot, "data", bw_adjust=1, clip=(0, max_graph), color="black", lw=1) 
+    
+    g = sns.FacetGrid(df, row="category", hue="category", aspect=5, height=1.2, palette="viridis")
+    g.map(sns.kdeplot, "value", bw_adjust=1, clip=(0, max_graph), fill=True, alpha=0.6)
+    g.map(sns.kdeplot, "value", bw_adjust=1, clip=(0, max_graph), color="black", lw=1)
     g.figure.subplots_adjust(hspace=-0.5)
     
     # Clean up the axes and apply labels
-    g.set_titles("")                 
-    g.set(yticks=[], ylabel="")     
+    g.set_titles("")
+    g.set(yticks=[], ylabel="")
     g.despine(bottom=True, left=True)
-    for ax, label in zip(g.axes.flat, headers):
-        ax.text(-0.02, 0.2, label, fontweight='bold', color='black', 
+    for ax, label in zip(g.axes.flat, df['category'].unique()):
+        ax.text(-0.02, 0.2, label, fontweight='bold', color='black',
                 ha='right', va='center', transform=ax.transAxes)
     g.figure.set_size_inches(8, 8)
     
     output_path = os.path.join(directory, f"Ridgeline_plot_number.png")
     plt.savefig(output_path, dpi=100, bbox_inches='tight', facecolor='white')
+    plt.show()
     plt.close(g.figure)
 
 main()
