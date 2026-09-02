@@ -14,18 +14,6 @@ import shutil
 import logging
 from datetime import datetime
 
-############################################################################################################
-#   Eastern Michigan University
-#   Backues Lab  
-#   Author: Payton Dunning, Andrew Ross and Steven Backues
-#
-#   A script for analyzing the contents of an Autophagic Vacuole Simulation (AVS) project formatted 
-#   Compucell 3D (CC3D) simulation. The script takes in a PIF file (.piff), that must contain "Body" and
-#   "Wall" cells, and takes a slice through the simulation comparable to a TEM image of a cell. The bodies
-#   within this slice are then analyzed to determine their relative areas. This area data is then recorded
-#   for later compilation and statistical analysis.
-############################################################################################################
-
 # paramsFile is used to keep track of several variables used by multiple scripts.
 paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
 # paramsFile = 'src/attributes/Model_Parameters.txt'   # For Windows
@@ -250,7 +238,6 @@ def take_slice(inputName, sliceCoord, unScaledSliceThickness, scaleFactor, seed)
         HalfSliceThickness += 1
     
     logging.info(f"Slice thickness: {sliceThickness}")
-    logging.info(f"Half slice thickness: {HalfSliceThickness}")
     print(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
     logging.info(f"Looking for x coordinates between {sliceCoord - HalfSliceThickness} and {sliceCoord + HalfSliceThickness}")
 
@@ -387,7 +374,6 @@ def to_nm(overalldfsk_new, scaleFactor, initialTime, size_mu, size_sigma, number
     overalldfsk_new["number_mu"] = number_mu
     overalldfsk_new["number_sigma"] = number_sigma
     finalOutput = overalldfsk_new[["time", "body_number", "area_scaled", "perimeter_scaled", "circularity", "AR", "size_mu", "size_sigma", "number_mu", "number_sigma"]]
-    #print(finalOutput)
     write_header = not os.path.exists(output_path)
     finalOutput.to_csv(output_path, mode='a', header=write_header, index=False)
 
@@ -399,7 +385,6 @@ def add_empty_line(initialTime, size_mu, size_sigma, number_mu, number_sigma, ou
     data_NA['size_sigma'] = size_sigma
     data_NA['number_mu'] = number_mu
     data_NA['number_sigma'] = number_sigma
-    print(data_NA)
     write_header = not os.path.exists(output_path)
     data_NA.to_csv(output_path, mode='a', header=write_header, index=False)
 

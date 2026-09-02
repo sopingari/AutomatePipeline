@@ -28,26 +28,15 @@ def total_dist_to_pt(pos_array_as_vec,apb_df,ctr_to_use:np.ndarray=None):
   if ctr_to_use is None:
     ctr_to_use=np.zeros_like(pos_array[1,:])
   dists = np.sqrt(np.sum((pos_array-ctr_to_use)**2,axis=1))
-  #print("obj func: pos_array",pos_array)
-  #print("obj func: sum(dists to origin)", np.sum(dists))
   return np.sum(dists)
-  #  orig_lengths = np.expand_dims(np.sqrt(np.sum(dir_array**2,axis=1)),axis=1)
+
 
 def move_along_dir(df,pos_array,ii,direction,stepsize):
   # the direction (dir) passed in should usually be a unit vector,
   # but it's not actually required, so we don't check for it.
   dist_from_origin = (df.loc[0,"r"]+df.loc[ii,"r"])*(1.0+1e-8)
   pvals = df['p']
-  # In summer 2023, Connor W. and Ross played with this, using this Desmos,
-  # https://www.desmos.com/calculator/7kvz3hdynt
-  # and found:
-    # If you have two APBs, one with p-value p1 and one with p2,
-    # taking min(p1,p2) is "not safe": it's easy to get a "false negative" for a collision--we might end up placing APBs that overlap.
-    # taking max(p1,p2) is "safe": we can't have a "false negative" for a collision--we'll never accidentally place APBs that actually overlap.
-    # In between those two is the arithmetic average, (p1+p2)/2, which we didn't prove is safe but seemed to work most of the time: "mostly safe"
-    # To get the tightest clustering, we want to use the smallest possible combined pval, so (p1+p2)/2 is better/more compact than max(p1,p2)
-    # We could get slightly better clustering by using the geometric mean, which is always <= the arithmetic mean; see
-    # https://en.wikipedia.org/wiki/Inequality_of_arithmetic_and_geometric_means.
+
   #
   pvals = pvals[0:ii]
   pvals_e = np.expand_dims(pvals,axis=1)
@@ -77,8 +66,6 @@ def move_along_dir(df,pos_array,ii,direction,stepsize):
     # high-order polynomials, essentially (technically that's for ellipses with p=2, but
     # this problem is just as hard)
 
-    # This old code uses the p-values of the already-placed APBs and ignores the p-value of the one we're trying to place:
-    #dists = (np.sum(np.abs(pos_array[0:ii,:]-pos)**pvals_e,axis=1))**(1.0/pvals)
     # Now let's also incorporate the p-value of the APB we're trying to place:
     dists = (np.sum(np.abs(pos_array[0:ii,:]-pos)**apvals_e,axis=1))**(1.0/apvals)
     # Make a set of logicals (True/False), to say whether this APB
@@ -96,15 +83,11 @@ def move_along_dir(df,pos_array,ii,direction,stepsize):
 def inter_APB_boundary_distances(pos_array_as_vec,apb_df):
   pos_array = np.reshape(pos_array_as_vec,(len(apb_df),-1))
   cur_dist_mat = distance_matrix(pos_array,pos_array) # between centers, not boundaries.
-  #print(cur_dist_mat)
-  #print("type:",type(apb_df))
-  #print(apb_df)
+
   rvec = apb_df['r'].to_numpy()
-  #print(rvec)
   # adding two vectors (or, the same vector twice) to get all pairs of sums:
   # https://stackoverflow.com/questions/47829946/how-to-sum-two-vectors-to-obtain-a-matrix-of-sums-of-all-pairs
   min_dist_mat =  rvec[:,None]+rvec
-  #print(min_dist_mat)
   d = cur_dist_mat - min_dist_mat
   # But, we don't want the diagonal--who cares about distances from an APB to itself?
   # And, the matrix is symmetric, so we only care about the upper triangle, or the lower triangle, not both.
@@ -150,14 +133,13 @@ def get_directions_hcp(bodies,ndim=3,rng=None,unitvectors=True,exclude_origin=Tr
 
     dirmat = ortho_group.rvs(ndim)
 
-    coords_rotated = dirmat @ coords.transpose() # not sure this works mathematically or in python!
+    coords_rotated = dirmat @ coords.transpose() # verified to work 
     coords = coords_rotated.transpose()
 
   dists_true = np.sqrt(np.sum(coords**2,axis=1))
   dists_perturbed = dists_true + rng.uniform(low=0,high=0.001)
   dists_order = np.argsort(dists_perturbed)
   dir_array = coords[dists_order,:]
-  #print(dir_array.shape) # debugging
   orig_lengths = np.expand_dims(np.sqrt(np.sum(dir_array**2,axis=1)),axis=1)
   if unitvectors:
     dir_array = dir_array / orig_lengths # turn each into a unit vector.
@@ -208,22 +190,16 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
 
   for ii0 in range(bodies-1):
     ii = ii0+1
-    #print(ii)
     d = {'bodynum': ii, 'r': r[ii],'p':plist[ii]}
-
-    #MV  pd <- df
     df = pd.concat([df,pd.DataFrame(data=[d])],ignore_index=True)
-    #print(df)
+
 
     ndir_to_try = min(iterations,dirmat.shape[0])
     pos_list = []
     dist_hist = np.inf*np.ones((ndir_to_try,))
-    #print(dirmat.shape) # debugging
     for jj in range(ndir_to_try):
-      #print(jj,ndir_to_try)
       dir=np.zeros((3,),dtype=float)
       dir[0:ndim]=dirmat[jj,:]
-      #print(dir,orig_lengths[jj]) # debugging
       pos,dist_from_origin = move_along_dir(df,pos_array,ii,dir,stepsize)
       pos_list.append(pos)
       dist_hist[jj] = dist_from_origin
@@ -236,20 +212,17 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     # and delete this direction from the dirmat:
     dirmat = np.delete(dirmat,jjbest,axis=0)
     orig_lengths = np.delete(orig_lengths,jjbest,axis=0)
-    #print(pos_array)
 
   if optimmaxiter > 0: # since if maxiter==0, then don't do the optimization!
     optim_method='trust-constr' # interior-point method
     myoptions={'maxiter':optimmaxiter}
     
     # calculate compactness (distance from every body to every other body) of the starting bodies
-    #print(pos_array)
     body_starting_distances = 0
     for body1 in pos_array:
       for body2 in pos_array:
         body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
         body_starting_distances += body_distance
-    #print ("body_starting_distances = ", body_starting_distances)
     
     optim_df = df
     x0 = np.ravel(pos_array) # turn into a 1-dimensional array, since that's what minimize works with.
@@ -259,7 +232,6 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     # print the objective function value (ofv) for the current positions:
     ofv_original = total_dist_to_pt(x0,optim_df)
     print("ofv_original:",ofv_original)
-    #scipy.optimize.minimize(fun, x0, args=(), method='trust-constr', hess=None, hessp=None, bounds=None, constraints=(), tol=None, callback=None, options={'grad': None, 'xtol': 1e-08, 'gtol': 1e-08, 'barrier_tol': 1e-08, 'sparse_jacobian': None, 'maxiter': 1000, 'verbose': 0, 'finite_diff_rel_step': None, 'initial_constr_penalty': 1.0, 'initial_tr_radius': 1.0, 'initial_barrier_parameter': 0.1, 'initial_barrier_tolerance': 0.1, 'factorization_method': None, 'disp': False})
     res = minimize(total_dist_to_pt, x0, args=optim_df,method=optim_method,constraints=cons,options=myoptions) 
     # res stands for results, put into pos_array
     pos_array_safe = pos_array.copy()
@@ -267,17 +239,13 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     pos_array = np.reshape(pos_array_as_vec,(len(optim_df),-1))
     
     # calculate compactness (distance from every body to every other body) of the ending bodies
-    #print(pos_array)
     body_ending_distances = 0
     for body1 in pos_array:
       for body2 in pos_array:
         body_distance = math.sqrt((body1[0] - body2[0])**2 + (body1[1] - body2[1])**2 + (body1[2] - body2[2])**2) 
         body_ending_distances += body_distance
-    #print ("body_ending_distances = ", body_ending_distances)
     compactness = (body_starting_distances / body_ending_distances)-1   #0 if no compaction, positive if compacted
-    #print ("compactness = ", compactness)
     
-    #
     ofv_final = total_dist_to_pt(pos_array_as_vec,optim_df)
     print("ofv_final:",ofv_final)
     #Done with optimization step
@@ -302,7 +270,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     dists_to_origin = (np.sum(np.abs(pos_array_shifted_to_origin)**vacp,axis=1))**(1.0/vacp)
     dists_plus_rad = dists_to_origin + r
     max_dists_plus_rad = max(dists_plus_rad)
-    vacRadInner = 0 # aross15 changing this from just vacRad to vacRadInner to be more clear
+    vacRadInner = 0 
     iterCount = 0
     unScaledSliceThickness = args.unScaledSliceThickness
     unScaledVacMin = args.unScaledVacMin
@@ -313,7 +281,7 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
       visible_slice = 0
       while (visible_slice <= unScaledVacMin):  #take a slice of the randomly generated vacuole, and if the slice is smaller than unScaledVacMin, generate and slice a new vacuole
         #generate new vacRadInner according to a lognormal
-        r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu #aross15 adding the [0] to get just a scalar, not an np.array
+        r_normals = rng.standard_normal(1)[0]*wall_Radius_Sigma+wall_Radius_Mu 
         vacRadInner = np.exp(r_normals) # turn the normals into log-normals       
         vacpos = np.random.uniform(low = 0, high = box_size)
         zoffset = z - vacpos  #distance from vacuole center to slice plane
@@ -337,7 +305,6 @@ def genBalls3(bodies=20, wall_Radius_Mu=6.8, wall_Radius_Sigma=0.34, mu=5, sigma
     r_and_pos_array = np.hstack((np.expand_dims(r,axis=1),pos_array_shifted_to_1st_octant))
 
     # Then add the vacuole wall as the first item, and radius in the first column.
-    # from R:    cellSize=2*vacRad ; output_spheregen <- rbind(cellSize/2, output_spheregen)
     vac_pos_array = np.ones_like(pos_array[0,:])*vacRadOuter #  x, y, and z if needed.
 
     vac_r_and_pos = np.hstack((vacRadOuter,vac_pos_array)) # we need to record vacRadOuter not vacRadInner to make sure that it all fits in the positive octant
@@ -373,8 +340,8 @@ def log_statistics(args, df):
         "seed": args.seed,
         "num_spheroids_requested": args.N,
         "num_spheroids_placed": len(spheroids),
-        "vacuole_outer_radius": vacuole['rOuter'], # aross15 making it more clear
-        "vacuole_inner_radius": vacuole['rInner'],    #sbackues
+        "vacuole_outer_radius": vacuole['rOuter'], 
+        "vacuole_inner_radius": vacuole['rInner'],   
         "dx": args.dx,
         "optimmaxiter": args.optimmaxiter
     }
@@ -436,7 +403,6 @@ def generate_piff_file(df, dx, show_wall, filename='output.piff'):
         x0, y0, z0 = spheroid['x'] / dx, spheroid['y'] / dx, spheroid['z'] / dx   #Center of spheriod in voxels 
         R = spheroid['r'] / dx  #R = radius of spheroid in voxels 
         pvals = spheroid['p']    #pvals = p-value (p-norm); 2=spherical
-        #print("pvals =", pvals)
         # Define bounding box (in voxels) 
         x_min = x0 - R
         x_max = x0 + R
@@ -788,7 +754,7 @@ def write_vacuole_data_csv(runs_dir, run_id, args, df, iterCount, ofv_original, 
     spheroids = df[df['bodyType'] == 'APB']
     
     # Calculate global statistics
-    # Vacuole volume based on inner radius; the hollow volume that the spheres can be in is what matters #sbackues
+    # Vacuole volume based on inner radius; the hollow volume that the spheres can be in is what matters 
     total_spheroid_volume = sum((4/3) * np.pi * (s['r']**3) for _, s in spheroids.iterrows())
     vacuole_volume = (4/3) * np.pi * (vacuole['rInner'].item() if isinstance(vacuole['rInner'], np.ndarray) else vacuole['rInner'])**3
     success_rate = len(spheroids) / args.N * 100

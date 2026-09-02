@@ -20,10 +20,9 @@ def main():
         print("\t[1]: Run the full pipeline including CC3D with nested iterations over Body Number and Body Size")
         print("\t[2]: Run vacuole_gen alone, with nested iterations but no PIFF file generation, for testing only")
         print("\t[3]: Run vacuole_gen alone, with nested iterations but no CC3D, for making PIFF files")
-        print("\t[4]: Run Slice Stats on the vacuole_gen output, without CC3D, for testing only")
+        print("\t[4]: Run Slice Stats directly on the vacuole_gen output, without deforming the bodies with CC3D")
         print("\t[5]: Run Slice Stats alone")
         print("\t[6]: Run AVS Stats alone, for analyzing data")     
-        print("\t[9]: Read the ReadMe file")
         print("\t[0]: Exit AVS")
 
         scriptChoice = input()
@@ -38,7 +37,7 @@ def main():
         elif scriptChoice == "3":
             run_pipeline(cc3d = False, PIFF = 2)
         elif scriptChoice == "4":
-            run_pipeline(cc3d = False, PIFF = 1, SliceTest = True) # For testing SliceStats
+            run_pipeline(cc3d = False, PIFF = 1, SliceTest = True) # For slicing the original spherical bodies, without deformation by cc3d
         elif scriptChoice == "5":
             run_SliceStats()
         elif scriptChoice == "6":
@@ -284,7 +283,7 @@ def run_pipeline(cc3d = True, PIFF = 1, SliceTest = False):
                                 print("A PIFF file was not generated, so cc3d and SliceStats will not be run")
 
                         
-                        #Test SliceStats (if called for)
+                        #Slice the original spherical bodies (if called for)
                         if SliceTest == True:
                             run_SliceStatsTest()
                         
@@ -338,7 +337,6 @@ def run_vacuole_gen():
 def run_cc3d_script(params):
     print("Running CC3D simulation using runScript.sh...")
     cc3d_folder = (os.path.dirname(os.path.dirname(os.path.dirname(params["xml_file_path"]))))
-    #print(cc3d_folder)
     run_script = os.path.join(cc3d_folder, 'runScript.sh')
 
     if not os.path.exists(run_script):
@@ -389,16 +387,6 @@ def run_AVSStats():
         print("AVSStats executed successfully.")
     except subprocess.CalledProcessError as e:
         print(f"An error occurred while running AVSStats.py: {e}")
-
-
-def read_readme():
-    print("Reading the ReadMe file...")
-    readme_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.txt')
-    if os.path.exists(readme_file):
-        with open(readme_file, 'r') as f:
-            print(f.read())
-    else:
-        print("README file not found.")
 
 
 if __name__ == "__main__":

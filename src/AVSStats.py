@@ -46,16 +46,16 @@ def main(fileSelectOpt = True, manual = True):
             if(userSelection == "2"):
                 if programMode == "1":
                     print(sim_slices.head())
-                    #try:
-                    findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
-                    # except:
-                        # loadDataMessage()
+                    try:
+                      findAverage_size(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                      loadDataMessage()
                 elif programMode == "2":
                     print(sim_slices.head())
-                    # try:
-                    findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
-                    # except:
-                        # loadDataMessage()
+                    try:
+                      findAverage_num(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                      loadDataMessage()
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
                     print("[1]: Estimate body size from body slice areas")
@@ -64,15 +64,15 @@ def main(fileSelectOpt = True, manual = True):
 
             elif(userSelection == "3"):
                 if programMode == "1":
-                    #try:
-                    KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
-                    # except:
-                    #     loadDataMessage()
+                    try:
+                      KS_results, ES_results = multi_compare_area(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                      loadDataMessage()
                 elif programMode == "2":
-                    # try:
-                    KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
-                    # except:
-                    #     loadDataMessage()
+                    try:
+                      KS_results, ES_results = multi_compare_number(real = real_slices, sim = sim_slices, directory = directory)
+                    except:
+                      loadDataMessage()
 
                 else: 
                     print("Please choose either option 1 or 2 by typing that number")
