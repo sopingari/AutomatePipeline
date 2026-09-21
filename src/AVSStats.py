@@ -114,7 +114,7 @@ def loadDataArea(fileSelectOpt):
         print("[2]: Analyze a different set of simulated data that you have stored in a csv file")
         whichSim = input()
         if whichSim == "1":
-            latest_run = os.listdir("./runs")[-1]
+            latest_run = sorted(os.listdir("./runs"))[-1]
             print("Latest run:", latest_run)
             sim_slices = pullData(os.path.join("./runs", latest_run, "sliceMeasurements.csv"))
             print(sim_slices.head())
@@ -165,7 +165,7 @@ def loadDataNumber(fileSelectOpt):
         print("[2]: Analyze a different set of simulated data that you have stored in a csv file")
         whichSim = input()
         if whichSim == "1":
-            latest_run = os.listdir("./runs")[-1]
+            latest_run = sorted(os.listdir("./runs"))[-1]
             print("Latest run:", latest_run)
             sim_slices = pullData(os.path.join("./runs", latest_run, "sliceMeasurements.csv"))
             print(sim_slices.head())
