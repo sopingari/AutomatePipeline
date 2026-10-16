@@ -14,17 +14,6 @@ import shutil
 import logging
 from datetime import datetime
 
-############################################################################################################
-#   Eastern Michigan University
-#   Backues Lab  
-#   Author: Payton Dunning and Steven Backues
-#
-#   A script for analyzing the contents of an Autophagic Vacuole Simulation (AVS) project formatted 
-#   Compucell 3D (CC3D) simulation. The script takes in a PIF file (.piff), that must contain "Body" and
-#   "Wall" cells, and takes a slice through the simulation comparable to a TEM image of a cell. The bodies
-#   within this slice are then analyzed to determine their relative areas. This area data is then recorded
-#   for later compilation and statistical analysis.
-############################################################################################################
 
 # paramsFile is used to keep track of several variables used by multiple scripts.
 paramsFile = './attributes/Model_Parameters.txt'   # For the linux server
@@ -83,19 +72,6 @@ def main(fileSelectOpt, MassRunCheck, inputPiff):
         else:
             print(">>Enter INPUT PIF file path+name:")
             inputName = input()
-
-    # Scan file to get x-coordinate range from Body entries
-    # with open(inputName, "r") as f:
-    #     min_x = float('inf')
-    #     max_x = float('-inf')
-    #     for line in f:
-    #         data = line.split()
-    #         if len(data) >= 4 and data[1] == "Body":
-    #             x1 = float(data[2])
-    #             x2 = float(data[3])
-    #             min_x = min(min_x, x1, x2)
-    #             max_x = max(max_x, x1, x2)
-
 
     # Scale vacuole coordinates
     centerX = float(modelParams.get("Vacuole_x", 0)) / scaleFactor
